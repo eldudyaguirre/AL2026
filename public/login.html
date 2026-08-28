@@ -3,49 +3,258 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AL2026 - Iniciar sesión</title>
+  <title>Avícola Luisin - Iniciar sesión</title>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Arial, sans-serif; background: #f3f4f6; }
-    .card { width: min(400px, 92vw); padding: 32px; background: #fff; border-radius: 16px; box-shadow: 0 10px 35px rgba(0,0,0,.12); }
-    h1 { margin: 0 0 8px; text-align: center; }
-    p { text-align: center; color: #666; margin-bottom: 24px; }
-    label { display: block; margin: 14px 0 6px; font-weight: 600; }
-    input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-    button { width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; }
-    #mensaje { min-height: 20px; margin-top: 14px; color: #c62828; font-size: 14px; }
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: 'Poppins', sans-serif;
+      background: #09203C;
+      color: white;
+      overflow: hidden;
+    }
+
+    .login-container {
+      position: relative;
+      width: min(400px, 92vw);
+      min-height: 390px;
+      padding: 20px 30px 30px;
+      background: #F24603;
+      color: white;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+      overflow: visible;
+      
+    }
+
+    h1 {
+      margin: 15px 0 25px;
+      font-size: 40px;
+      font-weight: 400;
+      font-weight: bold;
+      letter-spacing: 1px;
+      color: #09203C;
+    }
+
+    label {
+      display: block;
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-weight: 400;
+      font-weight: bold;
+      
+    }
+
+    .field {
+      margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      display: block;
+      width: 230px;
+      margin: 0 auto 4px;
+      padding: 11px;
+      background: none;
+      color: white;
+      text-align: center;
+      font-family: 'Poppins', sans-serif;
+      font-size: 16px;
+      outline: none;
+      border: 2px solid #09203C;
+      border-radius: 20px;
+      transition: 0.4s;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      width: 290px;
+      border-color: #FEA212;
+    }
+
+    input::placeholder {
+      color: #FEA212;
+    }
+
+    .show-password {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .show-password input {
+      width: auto;
+      margin: 0;
+      transform: scale(1.3);
+      cursor: pointer;
+      accent-color: #2196f3;
+    }
+
+    button[type="submit"] {
+      display: block;
+      width: 155px;
+      margin: 15px auto 0;
+      padding: 12px;
+      background: none;
+      color: white;
+      border: 2px solid #09203C;
+      border-radius: 20px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 1s;
+    }
+
+    button[type="submit"]:hover,
+    button[type="submit"]:focus {
+      background: white;
+      color: black;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+      outline: none;
+    }
+
+    button[type="submit"]:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    #mensaje {
+      min-height: 22px;
+      margin-top: 14px;
+      color: #ff6b6b;
+      font-size: 14px;
+    }
+
+    #mensaje.success {
+      color: #2ecc71;
+    }
+
+    @media (max-width: 480px) {
+      .login-container {
+        min-height: 380px;
+        padding: 18px 15px 25px;
+      }
+
+      h1 {
+        font-size: 36px;
+      }
+
+      input[type="text"],
+      input[type="password"] {
+        width: 230px;
+      }
+
+      input[type="text"]:focus,
+      input[type="password"]:focus {
+        width: min(290px, 78vw);
+      }
+    }
   </style>
 </head>
+
 <body>
-  <main class="card">
-    <h1>AL2026</h1>
-    <p>Inicia sesión para continuar</p>
+  <main class="login-container">
+    <h1>Avícola Luisin</h1>
+
     <form id="loginForm">
-      <label for="usuario">Usuario</label>
-      <input id="usuario" name="usuario" autocomplete="username" required>
-      <label for="clave">Contraseña</label>
-      <input id="clave" name="clave" type="password" autocomplete="current-password" required>
-      <button type="submit">Iniciar sesión</button>
+      <div class="field">
+        <label for="usuario">Usuario</label>
+        <input
+          type="text"
+          id="usuario"
+          name="usuario"
+          placeholder="Usuario"
+          autocomplete="username"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label for="clave">Contraseña</label>
+        <input
+          type="password"
+          id="clave"
+          name="clave"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          required
+        >
+      </div>
+
+      <label class="show-password">
+        <input type="checkbox" id="checkbox">
+        <span>Mostrar contraseña</span>
+      </label>
+
+      <button type="submit" id="submit">Iniciar sesión</button>
+
       <div id="mensaje"></div>
     </form>
   </main>
+
   <script>
     const form = document.getElementById('loginForm');
+    const usuario = document.getElementById('usuario');
+    const clave = document.getElementById('clave');
+    const checkbox = document.getElementById('checkbox');
+    const submit = document.getElementById('submit');
     const mensaje = document.getElementById('mensaje');
+
+    checkbox.addEventListener('change', () => {
+      clave.type = checkbox.checked ? 'text' : 'password';
+    });
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+
+      mensaje.className = '';
       mensaje.textContent = 'Verificando...';
+      submit.disabled = true;
+
       try {
         const response = await fetch('/api/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario: form.usuario.value, clave: form.clave.value })
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            usuario: usuario.value,
+            clave: clave.value
+          })
         });
+
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Usuario o contraseña incorrectos');
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Usuario o contraseña incorrectos');
+        }
+
+        mensaje.className = 'success';
+        mensaje.textContent = 'Acceso correcto...';
+
         window.location.href = '/dashboard.html';
+
       } catch (error) {
         mensaje.textContent = error.message;
+        submit.disabled = false;
       }
     });
   </script>
