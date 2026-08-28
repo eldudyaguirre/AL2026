@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AL2026 - Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f6f8; color: #222; }
+    header { padding: 18px 24px; background: #fff; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+    main { padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
+    .card { background: #fff; padding: 22px; border-radius: 12px; box-shadow: 0 3px 15px rgba(0,0,0,.06); }
+    .value { font-size: 28px; font-weight: 700; margin-top: 8px; }
+    button { padding: 9px 14px; border: 0; border-radius: 7px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>AL2026</strong>
+    <span id="usuario"></span>
+    <button onclick="cerrarSesion()">Cerrar sesión</button>
+  </header>
+  <main>
+    <h1>Dashboard</h1>
+    <div class="grid">
+      <section class="card"><div>Estado de API</div><div class="value" id="api">...</div></section>
+      <section class="card"><div>Base de datos</div><div class="value" id="db">...</div></section>
+      <section class="card"><div>Bienvenido</div><div class="value" id="nombre">...</div></section>
+    </div>
+  </main>
+  <script>
+    async function cargarDashboard() {
+      try {
+        const response = await fetch('/api/session');
+        if (!response.ok) {
+          window.location.href = '/login.html';
+          return;
+        }
+        const data = await response.json();
+        document.getElementById('usuario').textContent = data.usuario || '';
+        document.getElementById('nombre').textContent = data.nombre || data.usuario || '-';
+        document.getElementById('api').textContent = 'OK';
+        document.getElementById('db').textContent = 'OK';
+      } catch (_) {
+        window.location.href = '/login.html';
+      }
+    }
+
+    async function cerrarSesion() {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    cargarDashboard();
+  </script>
+</body>
+</html>
