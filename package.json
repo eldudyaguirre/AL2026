@@ -1,0 +1,16 @@
+{
+  "name": "al2026-api",
+  "version": "1.0.0",
+  "description": "API de prueba para conectar Railway con PostgreSQL mediante Tailscale y Railtail.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.16.3"
+  }
+}
