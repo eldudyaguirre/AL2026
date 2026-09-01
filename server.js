@@ -34,7 +34,10 @@ function getSession(req) {
   return match ? sessions.get(match[1]) : null;
 }
 
+// Rutas principales y compatibilidad con las rutas anteriores.
 app.get('/', (_req, res) => res.redirect('/html/login.html'));
+app.get('/login.html', (_req, res) => res.redirect('/html/login.html'));
+app.get('/frmmenprinci.html', (_req, res) => res.redirect('/html/frmmenprinci.html'));
 
 app.post('/api/login', async (req, res) => {
   const usuario = String(req.body?.usuario || '').trim();
