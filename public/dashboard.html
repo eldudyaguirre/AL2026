@@ -3,77 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/dashboard.css">
   <title>AL2026 - Dashboard</title>
-  <style>
-    *{box-sizing:border-box}
-    :root{--blue:#073674;--green:#24be24;--dark:#3f3f3f;--light:#f4f5f7}
-    body{margin:0;font-family:Arial,sans-serif;background:var(--light);color:#222;min-height:100vh}
-    .layout{display:flex;min-height:100vh}
-
-    .sidebar{position:fixed;left:0;top:0;bottom:0;width:285px;background:#fff;padding:28px 20px;box-shadow:3px 0 18px rgba(0,0,0,.12);z-index:100;display:flex;flex-direction:column;overflow-y:auto}
-    .sidebar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
-    .brand{display:flex;align-items:center;gap:12px;color:var(--blue)}
-    .brand-mark{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#1685c7,#07527f);color:#fff;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.18)}
-    .brand-name{font-size:22px;font-weight:700;letter-spacing:.5px}
-    .close-btn{display:none;border:0;background:transparent;font-size:26px;color:#444;cursor:pointer}
-
-    .profile{padding:16px 10px 22px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px;margin-bottom:18px}
-    .profile-avatar{width:46px;height:46px;border-radius:12px;background:#e8edf3;display:grid;place-items:center;color:var(--blue);font-weight:700}
-    .profile-info{min-width:0}
-    .profile-name{font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .profile-user{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-    .menu-title{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:#aaa;font-weight:700;padding:0 12px 8px}
-    .menu{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
-    .menu a{display:flex;align-items:center;gap:13px;padding:12px 13px;border-radius:10px;text-decoration:none;color:#555;font-size:14px;transition:background .2s,color .2s,transform .2s}
-    .menu a:hover{background:#f1f4f8;color:var(--blue);transform:translateX(2px)}
-    .menu a.active{background:#f0f2f5;color:var(--blue);font-weight:700;position:relative}
-    .menu a.active::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--green);border-radius:0 3px 3px 0}
-    .icon{width:20px;text-align:center;font-size:17px;flex:0 0 20px}
-
-    .sidebar-bottom{margin-top:auto;padding-top:20px;border-top:1px solid #eee}
-    .logout-link{width:100%;border:0;background:transparent;color:#777;display:flex;align-items:center;gap:13px;padding:12px 13px;border-radius:10px;cursor:pointer;text-align:left;font-size:14px}
-    .logout-link:hover{background:#f8eeee;color:#a33}
-
-    .overlay{display:none}
-    .content{width:100%;margin-left:285px;min-width:0}
-    .topbar{height:74px;background:var(--dark);display:flex;align-items:center;justify-content:space-between;padding:0 32px;color:#fff}
-    .topbar-title{font-size:22px;font-weight:700}
-    .topbar-title span{color:#21c4c9}
-    .mobile-menu{display:none;border:0;background:transparent;color:#fff;font-size:28px;cursor:pointer}
-
-    main{max-width:1200px;margin:0 auto;padding:34px 32px 50px}
-    .heading{margin:0 0 8px;color:var(--blue);font-size:clamp(28px,4vw,40px)}
-    .subtitle{margin:0 0 28px;color:#777;font-size:15px}
-    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
-    .card{background:#fff;padding:25px;border-radius:18px;box-shadow:0 5px 20px rgba(0,0,0,.08);min-width:0;border-top:3px solid transparent}
-    .card:hover{border-top-color:var(--green)}
-    .card-label{color:#68778c;font-size:14px;font-weight:600}
-    .value{margin-top:12px;color:var(--blue);font-size:clamp(25px,4vw,34px);font-weight:700;overflow-wrap:anywhere}
-
-    @media(max-width:900px){
-      .sidebar{transform:translateX(-105%);transition:transform .28s ease;width:290px}
-      .sidebar.open{transform:translateX(0)}
-      .close-btn{display:block}
-      .overlay{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:90;display:block;opacity:0;visibility:hidden;transition:opacity .28s ease,visibility .28s ease}
-      .overlay.show{opacity:1;visibility:visible}
-      .content{margin-left:0}
-      .mobile-menu{display:block}
-      .topbar{padding:0 20px}
-      .topbar-title{font-size:19px}
-      main{padding:28px 20px 40px}
-      .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-    }
-
-    @media(max-width:560px){
-      .topbar{height:66px}
-      main{padding:24px 14px 30px}
-      .grid{grid-template-columns:1fr;gap:14px}
-      .card{padding:21px}
-      .heading{font-size:29px}
-      .sidebar{width:min(290px,88vw)}
-    }
-  </style>
 </head>
 <body>
   <div class="layout">
@@ -85,7 +16,6 @@
         </div>
         <button class="close-btn" onclick="cerrarMenu()" aria-label="Cerrar menú">×</button>
       </div>
-
       <div class="profile">
         <div class="profile-avatar" id="avatar">AL</div>
         <div class="profile-info">
@@ -93,7 +23,6 @@
           <div class="profile-user" id="profile-user">Cargando...</div>
         </div>
       </div>
-
       <div class="menu-title">Menú principal</div>
       <nav aria-label="Menú principal">
         <ul class="menu">
@@ -104,7 +33,6 @@
           <li><a href="#usuario" onclick="cerrarMenu()"><span class="icon">◎</span><span>Usuario</span></a></li>
         </ul>
       </nav>
-
       <div class="sidebar-bottom">
         <button class="logout-link" onclick="cerrarSesion()"><span class="icon">↪</span><span>Cerrar sesión</span></button>
       </div>
@@ -118,22 +46,18 @@
         <div class="topbar-title">AL2026 <span>Dashboard</span></div>
         <div id="usuario"></div>
       </header>
-
       <main>
         <h1 class="heading">Panel de control</h1>
         <p class="subtitle">Resumen del estado de tu sistema AL2026</p>
-
         <div class="grid" id="estado">
           <section class="card" id="api">
             <div class="card-label">Estado de API</div>
             <div class="value" id="api-value">...</div>
           </section>
-
           <section class="card" id="db">
             <div class="card-label">Base de datos</div>
             <div class="value" id="db-value">...</div>
           </section>
-
           <section class="card" id="usuario-card">
             <div class="card-label">Bienvenido</div>
             <div class="value" id="nombre">...</div>
@@ -154,7 +78,6 @@
       document.getElementById('overlay').classList.remove('show');
       document.body.style.overflow='';
     }
-
     async function cargarDashboard(){
       try{
         const response=await fetch('/api/session');
@@ -171,11 +94,9 @@
         document.getElementById('db-value').textContent='OK';
       }catch(_){window.location.href='/login.html';}
     }
-
     async function cerrarSesion(){
       try{await fetch('/api/logout',{method:'POST'});}finally{window.location.href='/login.html';}
     }
-
     cargarDashboard();
   </script>
 </body>
