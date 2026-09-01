@@ -34,7 +34,7 @@ function getSession(req) {
   return match ? sessions.get(match[1]) : null;
 }
 
-app.get('/', (_req, res) => res.redirect('/login.html'));
+app.get('/', (_req, res) => res.redirect('/html/login.html'));
 
 app.post('/api/login', async (req, res) => {
   const usuario = String(req.body?.usuario || '').trim();
