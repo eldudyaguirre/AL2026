@@ -18,7 +18,7 @@ async function compras(req, res) {
 
     console.log(`[COMPRAS] Inicio consulta ${inicio} a ${fin}`);
 
-    const sql = `
+    const sqlCompras = `
       SELECT
         c.numfaccom AS numero,
         c.ruccedpro AS "rucCed",
@@ -31,10 +31,10 @@ async function compras(req, res) {
         'compras' AS origen
       FROM compras c
       LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
-      WHERE c.feccompra::date BETWEEN $1::date AND $2::date
+      WHERE c.feccompra BETWEEN $1::date AND $2::date
+    `;
 
-      UNION ALL
-
+    const sqlComprasNv = `
       SELECT
         c.numfaccom AS numero,
         c.ruccedpro AS "rucCed",
@@ -47,21 +47,35 @@ async function compras(req, res) {
         'comprasnv' AS origen
       FROM comprasnv c
       LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
-      WHERE c.feccompra::date BETWEEN $1::date AND $2::date
-
-      ORDER BY fecha DESC NULLS LAST, numero DESC;
+      WHERE c.feccompra BETWEEN $1::date AND $2::date
     `;
 
-    const result = await pool.query(sql, [inicio, fin]);
-    const tiempoMs = Date.now() - inicioConsulta;
+    const inicioCompras = Date.now();
+    const resultCompras = await pool.query(sqlCompras, [inicio, fin]);
+    console.log(`[COMPRAS] tabla compras: ${resultCompras.rows.length} registros en ${Date.now() - inicioCompras} ms`);
 
-    console.log(`[COMPRAS] Consulta completada: ${result.rows.length} registros en ${tiempoMs} ms`);
+    const inicioComprasNv = Date.now();
+    const resultComprasNv = await pool.query(sqlComprasNv, [inicio, fin]);
+    console.log(`[COMPRAS] tabla comprasnv: ${resultComprasNv.rows.length} registros en ${Date.now() - inicioComprasNv} ms`);
+
+    const filas = [...resultCompras.rows, ...resultComprasNv.rows];
+
+    filas.sort((a, b) => {
+      const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
+      const fechaB = b.fecha ? new Date(b.fecha).getTime() : 0;
+
+      if (fechaB !== fechaA) return fechaB - fechaA;
+      return String(b.numero || '').localeCompare(String(a.numero || ''));
+    });
+
+    const tiempoMs = Date.now() - inicioConsulta;
+    console.log(`[COMPRAS] Consulta completada: ${filas.length} registros en ${tiempoMs} ms`);
 
     return res.json({
       inicio,
       fin,
-      total: result.rows.length,
-      compras: result.rows,
+      total: filas.length,
+      compras: filas,
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
