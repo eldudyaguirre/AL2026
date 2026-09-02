@@ -302,12 +302,12 @@ body{
 
 .topbar{
     height:74px;
-    background:var(--dark);
+    background:#09203C;
     display:flex;
     align-items:center;
     justify-content:space-between;
     padding:0 32px;
-    color:#09203C
+    color:#fff
 }
 
 .topbar-title{
