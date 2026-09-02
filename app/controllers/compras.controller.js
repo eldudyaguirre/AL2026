@@ -17,13 +17,15 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // PRUEBA 1: traer únicamente el número de factura de compras.
+    // PRUEBA 2: número de factura + RUC/Cédula, sin joins ni otras columnas.
     client = pool.createDedicatedClient();
     await client.connect();
 
     const result = await client.query({
       text: `
-        SELECT c.numfaccom AS numero
+        SELECT
+          c.numfaccom AS numero,
+          c.ruccedpro AS "rucCed"
         FROM compras c
         WHERE c.feccompra >= $1::date
           AND c.feccompra <= $2::date
@@ -34,10 +36,11 @@ async function compras(req, res) {
 
     const filas = result.rows.map(fila => ({
       numero: fila.numero,
+      rucCed: fila.rucCed,
     }));
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] PRUEBA 1: ${filas.length} números en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] PRUEBA 2: ${filas.length} números + RUC en ${tiempoMs} ms`);
 
     return res.json({
       inicio,
@@ -47,7 +50,7 @@ async function compras(req, res) {
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] PRUEBA 1 - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] PRUEBA 2 - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
