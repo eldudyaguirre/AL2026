@@ -2,7 +2,15 @@ function abrirMenu(){document.getElementById('sidebar').classList.add('open');do
 function cerrarMenu(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');document.body.style.overflow=''}
 function toggleSubmenu(button){const grupo=button.closest('.menu-group');const estabaAbierto=grupo.classList.contains('open');document.querySelectorAll('.menu-group.open').forEach(item=>{item.classList.remove('open');const parent=item.querySelector('.menu-parent');if(parent)parent.setAttribute('aria-expanded','false')});if(!estabaAbierto){grupo.classList.add('open');button.setAttribute('aria-expanded','true')}}
 async function cargarUsuario(){try{const r=await fetch('/api/session');if(!r.ok){location.href='/login.html';return}const d=await r.json();document.getElementById('profile-name').textContent=d.usuario||'-';document.getElementById('profile-user').textContent=d.nombre||d.usuario||'-'}catch(e){location.href='/login.html'}}
-function formatoFecha(valor){if(!valor)return '-';const d=new Date(valor);if(Number.isNaN(d.getTime()))return String(valor).slice(0,10);return d.toLocaleDateString('es-EC')}
+function formatoFecha(valor){
+  if(!valor)return '-';
+  const texto=String(valor);
+  const match=texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(match)return `${match[3]}/${match[2]}/${match[1]}`;
+  const d=new Date(valor);
+  if(Number.isNaN(d.getTime()))return texto.slice(0,10);
+  return d.toLocaleDateString('es-EC');
+}
 function dinero(valor){if(valor===null||valor===undefined||valor==='')return '-';const n=Number(valor);return Number.isFinite(n)?n.toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2}):String(valor)}
 function texto(valor){return valor===null||valor===undefined||valor===''?'-':String(valor)}
 function pintarFilas(rows){const tbody=document.getElementById('compras-body');if(!rows.length){tbody.innerHTML='<tr><td colspan="8" class="empty">No existen compras para el rango seleccionado.</td></tr>';return}tbody.innerHTML=rows.map(r=>`<tr><td>${texto(r.numero)}</td><td>${texto(r.rucCed||r.rucced||r.rucProveedor)}</td><td>${texto(r.proveedor)}</td><td>${formatoFecha(r.fecha)}</td><td>${texto(r.autorizacion)}</td><td class="number">${dinero(r.subtotalSinIva)}</td><td class="number">${dinero(r.subtotalConIva)}</td><td class="number">${dinero(r.total)}</td></tr>`).join('')}
