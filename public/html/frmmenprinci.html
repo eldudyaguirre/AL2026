@@ -17,7 +17,6 @@
         </div>
         <button class="close-btn" onclick="cerrarMenu()" aria-label="Cerrar menú">×</button>
       </div>
-
       <div class="profile">
         <div class="profile-avatar"><img src="/img/usuario.svg" alt="Usuario" id="avatar"></div>
         <div class="profile-info">
@@ -25,89 +24,28 @@
           <div class="profile-user" id="profile-user">Cargando...</div>
         </div>
       </div>
-
       <div class="menu-title">Menú principal</div>
       <nav aria-label="Menú principal">
         <ul class="menu">
           <li><a href="/html/frmmenprinci.html" class="active" onclick="cerrarMenu()"><i class="fi fi-rr-home icon" aria-hidden="true"></i><span>Inicio</span></a></li>
-
-          <li class="menu-group">
-            <button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false">
-              <i class="fi fi-rr-feather icon" aria-hidden="true"></i><span>Avícola</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i>
-            </button>
-            <ul class="submenu">
-              <li><a href="#granja1" onclick="cerrarMenu()">Granja 1</a></li>
-              <li><a href="#granja2" onclick="cerrarMenu()">Granja 2</a></li>
-              <li><a href="#pesaje-avicola" onclick="cerrarMenu()">Pesaje</a></li>
-              <li><a href="#reportes-avicola" onclick="cerrarMenu()">Reportes</a></li>
-              <li><a href="#parametros-avicola" onclick="cerrarMenu()">Parámetros</a></li>
-            </ul>
-          </li>
-
-          <li class="menu-group">
-            <button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false">
-              <i class="fi fi-rr-pig icon" aria-hidden="true"></i><span>Porcina</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i>
-            </button>
-            <ul class="submenu">
-              <li><a href="#granja1-porcina" onclick="cerrarMenu()">Granja 1</a></li>
-              <li><a href="#granja2-porcina" onclick="cerrarMenu()">Granja 2</a></li>
-              <li><a href="#pesaje-porcina" onclick="cerrarMenu()">Pesaje</a></li>
-              <li><a href="#reportes-porcina" onclick="cerrarMenu()">Reportes</a></li>
-              <li><a href="#parametros-porcina" onclick="cerrarMenu()">Parámetros</a></li>
-            </ul>
-          </li>
-
-          <li class="menu-group">
-            <button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false">
-              <i class="fi fi-rr-industry-windows icon" aria-hidden="true"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i>
-            </button>
-            <ul class="submenu">
-              <li><a href="#inventario" onclick="cerrarMenu()">Inventario</a></li>
-              <li><a href="#items" onclick="cerrarMenu()">Items</a></li>
-              <li><a href="#produccion" onclick="cerrarMenu()">Producción</a></li>
-              <li><a href="#ordenes-compra" onclick="cerrarMenu()">Órdenes de compra</a></li>
-            </ul>
-          </li>
-
-          <li class="menu-group">
-            <button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false">
-              <i class="fi fi-rr-briefcase icon" aria-hidden="true"></i><span>Administrativo</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i>
-            </button>
-            <ul class="submenu">
-              <li><a href="#compras" onclick="cerrarMenu()">Compras</a></li>
-              <li><a href="#cuentas-por-pagar" onclick="cerrarMenu()">Cuentas por pagar</a></li>
-              <li><a href="#ventas" onclick="cerrarMenu()">Ventas</a></li>
-              <li><a href="#cuentas-por-cobrar" onclick="cerrarMenu()">Cuentas por cobrar</a></li>
-              <li><a href="#balances" onclick="cerrarMenu()">Balances</a></li>
-              <li><a href="#roles" onclick="cerrarMenu()">Roles</a></li>
-            </ul>
-          </li>
-
+          <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-feather icon" aria-hidden="true"></i><span>Avícola</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i></button><ul class="submenu"><li><a href="#granja1" onclick="cerrarMenu()">Granja 1</a></li><li><a href="#granja2" onclick="cerrarMenu()">Granja 2</a></li><li><a href="#pesaje-avicola" onclick="cerrarMenu()">Pesaje</a></li><li><a href="#reportes-avicola" onclick="cerrarMenu()">Reportes</a></li><li><a href="#parametros-avicola" onclick="cerrarMenu()">Parámetros</a></li></ul></li>
+          <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-pig icon" aria-hidden="true"></i><span>Porcina</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i></button><ul class="submenu"><li><a href="#granja1-porcina" onclick="cerrarMenu()">Granja 1</a></li><li><a href="#granja2-porcina" onclick="cerrarMenu()">Granja 2</a></li><li><a href="#pesaje-porcina" onclick="cerrarMenu()">Pesaje</a></li><li><a href="#reportes-porcina" onclick="cerrarMenu()">Reportes</a></li><li><a href="#parametros-porcina" onclick="cerrarMenu()">Parámetros</a></li></ul></li>
+          <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon" aria-hidden="true"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i></button><ul class="submenu"><li><a href="#inventario" onclick="cerrarMenu()">Inventario</a></li><li><a href="#items" onclick="cerrarMenu()">Items</a></li><li><a href="#produccion" onclick="cerrarMenu()">Producción</a></li><li><a href="#ordenes-compra" onclick="cerrarMenu()">Órdenes de compra</a></li></ul></li>
+          <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-briefcase icon" aria-hidden="true"></i><span>Administrativo</span><i class="fi fi-rr-angle-small-down submenu-arrow" aria-hidden="true"></i></button><ul class="submenu"><li><a href="#compras" onclick="cerrarMenu()">Compras</a></li><li><a href="#cuentas-por-pagar" onclick="cerrarMenu()">Cuentas por pagar</a></li><li><a href="#ventas" onclick="cerrarMenu()">Ventas</a></li><li><a href="#cuentas-por-cobrar" onclick="cerrarMenu()">Cuentas por cobrar</a></li><li><a href="#balances" onclick="cerrarMenu()">Balances</a></li><li><a href="#roles" onclick="cerrarMenu()">Roles</a></li></ul></li>
           <li><a href="#configuracion" onclick="cerrarMenu()"><i class="fi fi-rr-settings icon" aria-hidden="true"></i><span>Configuración</span></a></li>
         </ul>
       </nav>
-
-      <div class="sidebar-bottom">
-        <button class="logout-link" onclick="cerrarSesion()"><i class="fi fi-rr-sign-out-alt icon" aria-hidden="true"></i><span>Cerrar sesión</span></button>
-        <a class="flaticon-credit" href="https://www.flaticon.com/" target="_blank" rel="noopener noreferrer">Iconos por Flaticon</a>
-      </div>
+      <div class="sidebar-bottom"><button class="logout-link" onclick="cerrarSesion()"><i class="fi fi-rr-sign-out-alt icon" aria-hidden="true"></i><span>Cerrar sesión</span></button><a class="flaticon-credit" href="https://www.flaticon.com/" target="_blank" rel="noopener noreferrer">Iconos por Flaticon</a></div>
     </aside>
-
     <div class="overlay" id="overlay" onclick="cerrarMenu()"></div>
-
     <section class="content">
-      <header class="topbar">
-        <button class="mobile-menu" onclick="abrirMenu()" aria-label="Abrir menú"><i class="fi fi-rr-menu-burger" aria-hidden="true"></i></button>
-        <div class="topbar-title">Avicola y Porcina Luisin <span> Menú Principal</span></div>
-        <div id="usuario"></div>
-      </header>
-
+      <header class="topbar"><button class="mobile-menu" onclick="abrirMenu()" aria-label="Abrir menú"><i class="fi fi-rr-menu-burger" aria-hidden="true"></i></button><div class="topbar-title">Avicola y Porcina Luisin <span> Menú Principal</span></div><div id="usuario"></div></header>
       <main>
         <h1 class="heading">Panel de control</h1>
         <p class="subtitle">Resumen del estado del sistema</p>
         <div class="grid" id="estado">
-          <section class="card" id="api"><div class="card-label">Estado de API</div><div class="value" id="api-value">...</div></section>
-          <section class="card" id="db"><div class="card-label">Base de datos</div><div class="value" id="db-value">...</div></section>
+          <section class="card card-compact" id="api"><div class="card-label">Estado de API</div><div class="value" id="api-value">...</div></section>
+          <section class="card card-compact" id="db"><div class="card-label">Base de datos</div><div class="value" id="db-value">...</div></section>
           <section class="card" id="usuario-card"><div class="card-label">Bienvenido</div><div class="value" id="nombre">...</div></section>
         </div>
       </main>
