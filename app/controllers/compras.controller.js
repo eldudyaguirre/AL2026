@@ -17,8 +17,8 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // PRUEBA 2: número de factura + RUC/Cédula.
-    // No mostrar compras cuyo estado de proceso sea ANULADA.
+    // PRUEBA 3: número de factura + RUC/Cédula + nombre del proveedor.
+    // Se mantiene el filtro de facturas ANULADAS.
     client = pool.createDedicatedClient();
     await client.connect();
 
@@ -26,8 +26,10 @@ async function compras(req, res) {
       text: `
         SELECT
           c.numfaccom AS numero,
-          c.ruccedpro AS "rucCed"
+          c.ruccedpro AS "rucCed",
+          p.nomprovee AS proveedor
         FROM compras c
+        LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
         WHERE c.feccompra >= $1::date
           AND c.feccompra <= $2::date
           AND (c.estproces IS NULL OR UPPER(TRIM(c.estproces)) <> 'ANULADA')
@@ -39,10 +41,11 @@ async function compras(req, res) {
     const filas = result.rows.map(fila => ({
       numero: fila.numero,
       rucCed: fila.rucCed,
+      proveedor: fila.proveedor || 'PROVEEDOR NO REGISTRADO',
     }));
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] PRUEBA 2: ${filas.length} números + RUC en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] PRUEBA 3: ${filas.length} números + RUC + proveedor en ${tiempoMs} ms`);
 
     return res.json({
       inicio,
@@ -52,7 +55,7 @@ async function compras(req, res) {
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] PRUEBA 2 - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] PRUEBA 3 - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
