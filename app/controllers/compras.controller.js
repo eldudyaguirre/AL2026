@@ -20,6 +20,7 @@ async function compras(req, res) {
         c.feccompra AS "fecha",
         COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
         COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
+        COALESCE(c.valivacom, 0)::text AS "iva",
         COALESCE(c.totcompra, 0)::text AS "total"
       FROM compras c
       LEFT JOIN proveedores p
@@ -37,6 +38,7 @@ async function compras(req, res) {
         c.feccompra AS "fecha",
         COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
         COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
+        COALESCE(c.valivacom, 0)::text AS "iva",
         COALESCE(c.totcompra, 0)::text AS "total"
       FROM comprasnv c
       LEFT JOIN proveedores p
