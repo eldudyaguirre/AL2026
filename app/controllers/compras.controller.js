@@ -79,11 +79,11 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // Compras y comprasnv se consultan por separado, sin JOIN con proveedores.
-    const [comprasRows, comprasNvRows] = await Promise.all([
-      obtenerCompras('compras', inicio, fin),
-      obtenerCompras('comprasnv', inicio, fin),
-    ]);
+    // Las tablas se consultan SECUENCIALMENTE para no abrir demasiadas conexiones
+    // simultáneas contra PostgreSQL. Esto es especialmente importante porque cada
+    // proveedor se consulta con un cliente dedicado.
+    const comprasRows = await obtenerCompras('compras', inicio, fin);
+    const comprasNvRows = await obtenerCompras('comprasnv', inicio, fin);
 
     const filasBase = [
       ...comprasRows.map(r => ({ ...r, origen: 'compras' })),
@@ -91,6 +91,7 @@ async function compras(req, res) {
     ];
 
     // Solo se consultan los proveedores que realmente aparecen en las compras.
+    // Se mantiene en paralelo porque ya comprobamos que esta cantidad funciona.
     const rucs = [...new Set(
       filasBase.map(r => String(r.rucCed || '').trim()).filter(Boolean)
     )];
@@ -117,12 +118,12 @@ async function compras(req, res) {
     });
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] COMPLETO: ${filas.length} registros, ${rucs.length} proveedores en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] COMPLETO SECUENCIAL: ${filas.length} registros, ${rucs.length} proveedores en ${tiempoMs} ms`);
 
     return res.json({ inicio, fin, total: filas.length, compras: filas });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] COMPLETO - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] COMPLETO SECUENCIAL - Error después de ${tiempoMs} ms:`, error.message);
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
       detail: error.message,
