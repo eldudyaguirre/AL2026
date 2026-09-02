@@ -66,7 +66,8 @@ async function compras(req, res) {
       text: `
         SELECT
           c.numfaccom AS numero,
-          c.ruccedpro AS "rucCed"
+          c.ruccedpro AS "rucCed",
+          c.feccompra AS fecha
         FROM compras c
         WHERE c.feccompra >= $1::date
           AND c.feccompra <= $2::date
@@ -94,10 +95,11 @@ async function compras(req, res) {
       numero: fila.numero,
       rucCed: fila.rucCed,
       proveedor: proveedores.get(String(fila.rucCed || '').trim()) || 'PROVEEDOR NO REGISTRADO',
+      fecha: fila.fecha,
     }));
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] DICCIONARIO POR RUC: ${filas.length} compras, ${rucs.length} proveedores consultados en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] DICCIONARIO POR RUC + FECHA: ${filas.length} compras, ${rucs.length} proveedores consultados en ${tiempoMs} ms`);
 
     return res.json({
       inicio,
@@ -107,7 +109,7 @@ async function compras(req, res) {
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] DICCIONARIO POR RUC - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] DICCIONARIO POR RUC + FECHA - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
