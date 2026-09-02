@@ -8,32 +8,55 @@ async function cargarDiccionarioProveedores() {
 
   if (!proveedoresCargando) {
     proveedoresCargando = (async () => {
-      let client;
+      const mapa = new Map();
+      let ultimoRuc = '';
+      let total = 0;
+
       try {
-        client = pool.createDedicatedClient();
-        await client.connect();
+        // Cargamos el diccionario por bloques pequeños para evitar la consulta
+        // completa que se queda esperando desde Railway.
+        while (true) {
+          let client;
+          try {
+            client = pool.createDedicatedClient();
+            await client.connect();
 
-        const result = await client.query(`
-          SELECT ruccedpro, nomprovee
-          FROM proveedores
-        `);
+            const result = await client.query({
+              text: `
+                SELECT ruccedpro, nomprovee
+                FROM proveedores
+                WHERE ruccedpro > $1
+                ORDER BY ruccedpro
+                LIMIT 50
+              `,
+              values: [ultimoRuc],
+            });
 
-        const mapa = new Map();
-        for (const proveedor of result.rows) {
-          mapa.set(String(proveedor.ruccedpro).trim(), proveedor.nomprovee);
+            if (result.rows.length === 0) break;
+
+            for (const proveedor of result.rows) {
+              const ruc = String(proveedor.ruccedpro || '').trim();
+              if (ruc) mapa.set(ruc, proveedor.nomprovee);
+              ultimoRuc = ruc;
+            }
+
+            total += result.rows.length;
+            console.log(`[COMPRAS] Diccionario: ${total} proveedores cargados`);
+          } finally {
+            if (client) {
+              try {
+                await client.end();
+              } catch (error) {
+                console.error('[COMPRAS] Error cerrando cliente del diccionario:', error.message);
+              }
+            }
+          }
         }
 
         proveedoresMap = mapa;
-        console.log(`[COMPRAS] Diccionario de proveedores cargado: ${mapa.size} registros`);
+        console.log(`[COMPRAS] Diccionario de proveedores listo: ${mapa.size} registros`);
         return mapa;
       } finally {
-        if (client) {
-          try {
-            await client.end();
-          } catch (error) {
-            console.error('[COMPRAS] Error cerrando cliente del diccionario:', error.message);
-          }
-        }
         proveedoresCargando = null;
       }
     })();
@@ -59,10 +82,9 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // El diccionario de proveedores se carga una sola vez en memoria.
+    // El diccionario se carga una sola vez. Las compras no hacen JOIN.
     const proveedores = await cargarDiccionarioProveedores();
 
-    // PRUEBA: compras sin JOIN. El proveedor se obtiene exclusivamente del diccionario.
     client = pool.createDedicatedClient();
     await client.connect();
 
@@ -86,19 +108,17 @@ async function compras(req, res) {
     }));
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] PRUEBA DICCIONARIO: ${filas.length} compras en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] DICCIONARIO: ${filas.length} compras en ${tiempoMs} ms`);
 
     return res.json({
-      prueba: 'Compras + diccionario de proveedores',
       inicio,
       fin,
       total: filas.length,
-      tiempoMs,
       compras: filas,
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] PRUEBA DICCIONARIO - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] DICCIONARIO - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
