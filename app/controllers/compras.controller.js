@@ -1,17 +1,17 @@
 const pool = require('../database/postgres');
 
-async function ejecutarConsulta(text, values, timeout = 5000) {
+async function ejecutarConsulta(text, timeoutMs = 10000) {
   const client = await pool.connect();
 
   try {
-    return await client.query({
-      text,
-      values,
-      query_timeout: timeout,
-      statement_timeout: timeout,
-    });
-  } finally {
-    client.release();
+    // El timeout se aplica en PostgreSQL, evitando depender del timeout de lectura
+    // del cliente de node-postgres.
+    await client.query(`SET statement_timeout = '${timeoutMs}ms'`);
+    return await client.query(text);
+  } catch (error) {
+    // Si una consulta falla o expira, no devolvemos esa conexión al pool.
+    client.release(error);
+    throw error;
   }
 }
 
@@ -34,34 +34,37 @@ async function compras(req, res) {
 
     console.log(`[COMPRAS] Inicio consulta ${inicio} a ${fin}`);
 
-    // Primera prueba: solamente campos básicos de la tabla.
+    // Las fechas ya fueron validadas con expresión regular, por lo que pueden
+    // incorporarse como literales DATE. Esto elimina cualquier problema con
+    // parámetros preparados en esta consulta.
+    const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
+
     etapa = 'SELECT compras básicos';
+    const inicioBasicos = Date.now();
     const resultBasicos = await ejecutarConsulta(
       `SELECT numfaccom AS numero,
               ruccedpro AS "rucCed",
               feccompra AS fecha,
               numautori AS autorizacion
        FROM compras
-       WHERE feccompra BETWEEN $1::date AND $2::date`,
-      [inicio, fin]
+       WHERE ${rango}`
     );
-    console.log(`[COMPRAS] básicos: ${resultBasicos.rows.length} registros`);
+    console.log(`[COMPRAS] básicos: ${resultBasicos.rows.length} registros en ${Date.now() - inicioBasicos} ms`);
 
-    // Segunda prueba: solamente los campos numéricos.
     etapa = 'SELECT compras numéricos';
+    const inicioNumericos = Date.now();
     const resultNumericos = await ejecutarConsulta(
       `SELECT numfaccom AS numero,
               totsiniva AS "subtotalSinIva",
               totconiva AS "subtotalConIva",
               totcompra AS total
        FROM compras
-       WHERE feccompra BETWEEN $1::date AND $2::date`,
-      [inicio, fin]
+       WHERE ${rango}`
     );
-    console.log(`[COMPRAS] numéricos: ${resultNumericos.rows.length} registros`);
+    console.log(`[COMPRAS] numéricos: ${resultNumericos.rows.length} registros en ${Date.now() - inicioNumericos} ms`);
 
-    // Tercera prueba: comprasnv.
     etapa = 'SELECT comprasnv';
+    const inicioComprasNv = Date.now();
     const resultComprasNv = await ejecutarConsulta(
       `SELECT numfaccom AS numero,
               ruccedpro AS "rucCed",
@@ -72,13 +75,10 @@ async function compras(req, res) {
               totcompra AS total,
               'comprasnv' AS origen
        FROM comprasnv
-       WHERE feccompra BETWEEN $1::date AND $2::date`,
-      [inicio, fin]
+       WHERE ${rango}`
     );
-    console.log(`[COMPRAS] comprasnv: ${resultComprasNv.rows.length} registros`);
+    console.log(`[COMPRAS] comprasnv: ${resultComprasNv.rows.length} registros en ${Date.now() - inicioComprasNv} ms`);
 
-    // Unimos los resultados de compras por número de factura.
-    etapa = 'UNIR compras';
     const numericos = new Map(
       resultNumericos.rows.map(r => [String(r.numero), r])
     );
@@ -94,14 +94,12 @@ async function compras(req, res) {
       };
     });
 
-    // Proveedores se consulta únicamente después de comprobar las tablas de compras.
     etapa = 'SELECT proveedores';
+    const inicioProveedores = Date.now();
     const resultProveedores = await ejecutarConsulta(
-      `SELECT ruccedpro, nomprovee FROM proveedores`,
-      [],
-      5000
+      `SELECT ruccedpro, nomprovee FROM proveedores`
     );
-    console.log(`[COMPRAS] proveedores: ${resultProveedores.rows.length} registros`);
+    console.log(`[COMPRAS] proveedores: ${resultProveedores.rows.length} registros en ${Date.now() - inicioProveedores} ms`);
 
     const proveedores = new Map(
       resultProveedores.rows.map(p => [String(p.ruccedpro), p.nomprovee])
