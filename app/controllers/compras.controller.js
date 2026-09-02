@@ -1,68 +1,44 @@
 const pool = require('../database/postgres');
 
-let proveedoresMap = null;
-let proveedoresCargando = null;
+// Diccionario en memoria: solo se cargan los proveedores que realmente aparecen
+// en las compras consultadas. No se lee la tabla proveedores completa.
+const proveedoresMap = new Map();
 
-async function cargarDiccionarioProveedores() {
-  if (proveedoresMap) return proveedoresMap;
+async function buscarProveedor(rucCed) {
+  const ruc = String(rucCed || '').trim();
+  if (!ruc) return null;
 
-  if (!proveedoresCargando) {
-    proveedoresCargando = (async () => {
-      const mapa = new Map();
-      let ultimoRuc = '';
-      let total = 0;
-
-      try {
-        // Cargamos el diccionario por bloques pequeños para evitar la consulta
-        // completa que se queda esperando desde Railway.
-        while (true) {
-          let client;
-          try {
-            client = pool.createDedicatedClient();
-            await client.connect();
-
-            const result = await client.query({
-              text: `
-                SELECT ruccedpro, nomprovee
-                FROM proveedores
-                WHERE ruccedpro > $1
-                ORDER BY ruccedpro
-                LIMIT 50
-              `,
-              values: [ultimoRuc],
-            });
-
-            if (result.rows.length === 0) break;
-
-            for (const proveedor of result.rows) {
-              const ruc = String(proveedor.ruccedpro || '').trim();
-              if (ruc) mapa.set(ruc, proveedor.nomprovee);
-              ultimoRuc = ruc;
-            }
-
-            total += result.rows.length;
-            console.log(`[COMPRAS] Diccionario: ${total} proveedores cargados`);
-          } finally {
-            if (client) {
-              try {
-                await client.end();
-              } catch (error) {
-                console.error('[COMPRAS] Error cerrando cliente del diccionario:', error.message);
-              }
-            }
-          }
-        }
-
-        proveedoresMap = mapa;
-        console.log(`[COMPRAS] Diccionario de proveedores listo: ${mapa.size} registros`);
-        return mapa;
-      } finally {
-        proveedoresCargando = null;
-      }
-    })();
+  if (proveedoresMap.has(ruc)) {
+    return proveedoresMap.get(ruc);
   }
 
-  return proveedoresCargando;
+  let client;
+  try {
+    client = pool.createDedicatedClient();
+    await client.connect();
+
+    const result = await client.query({
+      text: `
+        SELECT nomprovee
+        FROM proveedores
+        WHERE ruccedpro = $1
+        LIMIT 1
+      `,
+      values: [ruc],
+    });
+
+    const nombre = result.rows.length ? result.rows[0].nomprovee : null;
+    proveedoresMap.set(ruc, nombre);
+    return nombre;
+  } finally {
+    if (client) {
+      try {
+        await client.end();
+      } catch (error) {
+        console.error('[COMPRAS] Error cerrando cliente proveedor:', error.message);
+      }
+    }
+  }
 }
 
 async function compras(req, res) {
@@ -82,9 +58,7 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // El diccionario se carga una sola vez. Las compras no hacen JOIN.
-    const proveedores = await cargarDiccionarioProveedores();
-
+    // Primero consultamos únicamente compras. No hay JOIN ni acceso a proveedores.
     client = pool.createDedicatedClient();
     await client.connect();
 
@@ -101,14 +75,29 @@ async function compras(req, res) {
       values: [inicio, fin],
     });
 
-    const filas = result.rows.map(fila => ({
+    const filasBase = result.rows;
+
+    // Solo buscamos los RUC que aparecen en estas compras y en paralelo.
+    const rucs = [...new Set(
+      filasBase
+        .map(fila => String(fila.rucCed || '').trim())
+        .filter(Boolean)
+    )];
+
+    const nombres = await Promise.all(
+      rucs.map(async ruc => [ruc, await buscarProveedor(ruc)])
+    );
+
+    const proveedores = new Map(nombres);
+
+    const filas = filasBase.map(fila => ({
       numero: fila.numero,
       rucCed: fila.rucCed,
       proveedor: proveedores.get(String(fila.rucCed || '').trim()) || 'PROVEEDOR NO REGISTRADO',
     }));
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] DICCIONARIO: ${filas.length} compras en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] DICCIONARIO POR RUC: ${filas.length} compras, ${rucs.length} proveedores consultados en ${tiempoMs} ms`);
 
     return res.json({
       inicio,
@@ -118,7 +107,7 @@ async function compras(req, res) {
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] DICCIONARIO - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] DICCIONARIO POR RUC - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
