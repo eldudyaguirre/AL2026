@@ -21,6 +21,11 @@ async function compras(req, res) {
       tiempoMs: Date.now() - inicioConsulta,
       filas: result.rows.length,
       resultado: result.rows,
+      total: result.rows.length,
+      compras: result.rows.map(row => ({
+        numero: row.numautori,
+        rucCed: row.longitud,
+      })),
     });
   } catch (error) {
     return res.status(500).json({
