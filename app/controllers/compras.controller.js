@@ -2,6 +2,7 @@ const pool = require('../database/postgres');
 
 async function compras(req, res) {
   const inicioConsulta = Date.now();
+  let client;
 
   try {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -16,7 +17,12 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    const result = await pool.query({
+    // Para este módulo usamos una conexión TCP nueva, sin reutilizar conexiones
+    // del pool que pudieran haber quedado bloqueadas por un problema de red.
+    client = pool.createDedicatedClient();
+    await client.connect();
+
+    const result = await client.query({
       text: `
         SELECT
           c.numfaccom AS numero,
@@ -53,8 +59,6 @@ async function compras(req, res) {
         ORDER BY fecha DESC NULLS LAST, numero DESC
       `,
       values: [inicio, fin],
-      // El límite de ejecución queda en PostgreSQL; no usamos query_timeout,
-      // porque node-postgres puede generar "Query read timeout" en el cliente.
     });
 
     const filas = result.rows.map(fila => ({
@@ -63,7 +67,7 @@ async function compras(req, res) {
     }));
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] ${filas.length} registros en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] ${filas.length} registros en ${tiempoMs} ms (cliente dedicado)`);
 
     return res.json({
       inicio,
@@ -80,6 +84,14 @@ async function compras(req, res) {
       detail: error.message,
       tiempoMs,
     });
+  } finally {
+    if (client) {
+      try {
+        await client.end();
+      } catch (error) {
+        console.error('[COMPRAS] Error cerrando cliente dedicado:', error.message);
+      }
+    }
   }
 }
 
