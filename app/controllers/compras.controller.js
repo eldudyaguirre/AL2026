@@ -5,51 +5,37 @@ async function compras(req, res) {
   let client;
 
   try {
-    const inicio = req.query.inicio || '2026-08-31';
-    const fin = req.query.fin || '2026-09-02';
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fin)) {
-      return res.status(400).json({ error: 'Las fechas deben tener formato YYYY-MM-DD.' });
-    }
-
     client = pool.createDedicatedClient();
     await client.connect();
 
-    // PRUEBA API: misma consulta que funcionó directamente en PostgreSQL.
+    // PRUEBA PROVEEDORES: consultar únicamente la tabla proveedores,
+    // sin JOIN y sin intervenir la tabla compras.
     const result = await client.query({
       text: `
         SELECT
-          c.numfaccom AS numero,
-          c.ruccedpro AS "rucCed",
-          p.nomprovee AS proveedor
-        FROM compras c
-        LEFT JOIN proveedores p
-          ON p.ruccedpro = c.ruccedpro
-        WHERE c.feccompra >= $1::date
-          AND c.feccompra <= $2::date
-          AND (c.estproces IS NULL OR UPPER(TRIM(c.estproces)) <> 'ANULADA')
-        ORDER BY c.feccompra DESC, c.numfaccom DESC
+          ruccedpro AS "rucCed",
+          nomprovee AS proveedor
+        FROM proveedores
+        ORDER BY ruccedpro
+        LIMIT 10
       `,
-      values: [inicio, fin],
     });
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] PRUEBA API JOIN: ${result.rows.length} registros en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] PRUEBA PROVEEDORES API: ${result.rows.length} registros en ${tiempoMs} ms`);
 
     return res.json({
-      prueba: 'API JOIN compras + proveedores',
-      inicio,
-      fin,
+      prueba: 'API tabla proveedores',
       total: result.rows.length,
       tiempoMs,
       compras: result.rows,
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] PRUEBA API JOIN - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] PRUEBA PROVEEDORES API - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
-      error: 'No se pudieron consultar las compras.',
+      error: 'No se pudieron consultar los proveedores.',
       detail: error.message,
       tiempoMs,
     });
