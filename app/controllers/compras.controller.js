@@ -1,34 +1,18 @@
 const pool = require('../database/postgres');
 
-async function diagnosticoCompras(inicio, fin) {
-  const pruebas = [
-    ['countRango', 'SELECT COUNT(*)::integer AS total FROM compras WHERE feccompra BETWEEN $1::date AND $2::date'],
-    ['unoRango', 'SELECT numfaccom, feccompra FROM compras WHERE feccompra BETWEEN $1::date AND $2::date LIMIT 1'],
-    ['columnasRango', `SELECT numfaccom AS numero, ruccedpro AS "rucCed", feccompra AS fecha, numautori AS autorizacion, totsiniva AS "subtotalSinIva", totconiva AS "subtotalConIva", totcompra AS total FROM compras WHERE feccompra BETWEEN $1::date AND $2::date LIMIT 20`],
-    ['todoSinFiltro', `SELECT numfaccom AS numero, ruccedpro AS "rucCed", feccompra AS fecha, numautori AS autorizacion, totsiniva AS "subtotalSinIva", totconiva AS "subtotalConIva", totcompra AS total FROM compras LIMIT 20`],
-  ];
+async function ejecutarConsulta(text, values) {
+  const client = await pool.connect();
 
-  const diagnostico = {};
-  for (const [nombre, sql] of pruebas) {
-    const inicioPrueba = Date.now();
-    try {
-      const result = await pool.query({ text: sql, values: [inicio, fin], query_timeout: 3000 });
-      diagnostico[nombre] = {
-        ok: true,
-        ms: Date.now() - inicioPrueba,
-        filas: result.rowCount,
-        resultado: result.rows[0] || null,
-      };
-    } catch (error) {
-      diagnostico[nombre] = {
-        ok: false,
-        ms: Date.now() - inicioPrueba,
-        error: error.message,
-      };
-    }
+  try {
+    return await client.query({
+      text,
+      values,
+      query_timeout: 20000,
+      statement_timeout: 15000,
+    });
+  } finally {
+    client.release();
   }
-
-  return diagnostico;
 }
 
 async function compras(req, res) {
@@ -52,7 +36,7 @@ async function compras(req, res) {
 
     etapa = 'SELECT compras';
     const inicioCompras = Date.now();
-    const resultCompras = await pool.query(
+    const resultCompras = await ejecutarConsulta(
       `SELECT
         numfaccom AS numero,
         ruccedpro AS "rucCed",
@@ -70,7 +54,7 @@ async function compras(req, res) {
 
     etapa = 'SELECT comprasnv';
     const inicioComprasNv = Date.now();
-    const resultComprasNv = await pool.query(
+    const resultComprasNv = await ejecutarConsulta(
       `SELECT
         numfaccom AS numero,
         ruccedpro AS "rucCed",
@@ -88,8 +72,9 @@ async function compras(req, res) {
 
     etapa = 'SELECT proveedores';
     const inicioProveedores = Date.now();
-    const resultProveedores = await pool.query(
-      `SELECT ruccedpro, nomprovee FROM proveedores`
+    const resultProveedores = await ejecutarConsulta(
+      `SELECT ruccedpro, nomprovee FROM proveedores`,
+      []
     );
     console.log(`[COMPRAS] proveedores: ${resultProveedores.rows.length} registros en ${Date.now() - inicioProveedores} ms`);
 
@@ -116,13 +101,18 @@ async function compras(req, res) {
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
     console.error(`[COMPRAS] Error en ${etapa} después de ${tiempoMs} ms:`, error.message);
-    console.error('[COMPRAS] Pool:', { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount });
+    console.error('[COMPRAS] Pool:', {
+      total: pool.totalCount,
+      idle: pool.idleCount,
+      waiting: pool.waitingCount,
+    });
 
-    const diagnostico = etapa === 'SELECT compras' && error.message === 'Query read timeout'
-      ? await diagnosticoCompras(req.query.inicio || null, req.query.fin || null)
-      : null;
-
-    return res.status(500).json({ error: 'No se pudieron consultar las compras.', detail: error.message, etapa, tiempoMs, diagnostico });
+    return res.status(500).json({
+      error: 'No se pudieron consultar las compras.',
+      detail: error.message,
+      etapa,
+      tiempoMs,
+    });
   }
 }
 
