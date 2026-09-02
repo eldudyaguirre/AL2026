@@ -18,8 +18,8 @@ async function compras(req, res) {
         p.nomprovee AS proveedor,
         c.numautori AS autorizacion,
         c.feccompra AS fecha,
-        c.totsiniva AS subtotalSinIva,
-        c.totconiva AS subtotalConIva
+        COALESCE(c.totsiniva, 0)::text AS subtotalSinIva,
+        COALESCE(c.totconiva, 0)::text AS subtotalConIva
       FROM compras c
       LEFT JOIN proveedores p
         ON p.ruccedpro = c.ruccedpro
