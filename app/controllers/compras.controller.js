@@ -13,13 +13,13 @@ async function compras(req, res) {
 
     const result = await client.query(`
       SELECT
-        c.numfaccom AS numero,
-        p.ruccedpro AS rucCed,
-        p.nomprovee AS proveedor,
-        c.numautori AS autorizacion,
-        c.feccompra AS fecha,
-        COALESCE(c.totsiniva, 0)::text AS subtotalSinIva,
-        COALESCE(c.totconiva, 0)::text AS subtotalConIva
+        c.numfaccom AS "numero",
+        p.ruccedpro AS "rucCed",
+        p.nomprovee AS "proveedor",
+        c.numautori AS "autorizacion",
+        c.feccompra AS "fecha",
+        COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
+        COALESCE(c.totconiva, 0)::text AS "subtotalConIva"
       FROM compras c
       LEFT JOIN proveedores p
         ON p.ruccedpro = c.ruccedpro
