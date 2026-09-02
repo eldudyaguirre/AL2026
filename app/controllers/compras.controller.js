@@ -17,7 +17,8 @@ async function compras(req, res) {
         p.ruccedpro AS rucCed,
         p.nomprovee AS proveedor,
         c.numautori AS autorizacion,
-        c.feccompra AS fecha
+        c.feccompra AS fecha,
+        c.totsiniva AS subtotalSinIva
       FROM compras c
       LEFT JOIN proveedores p
         ON p.ruccedpro = c.ruccedpro
@@ -28,7 +29,7 @@ async function compras(req, res) {
     `, [inicio, fin]);
 
     return res.json({
-      diagnostico: 'compras_ruc_proveedor',
+      diagnostico: 'compras_subtotal_sin_iva',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
