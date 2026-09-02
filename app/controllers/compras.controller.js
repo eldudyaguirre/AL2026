@@ -11,6 +11,15 @@ async function compras(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
+    const info = await client.query(`
+      SELECT
+        current_database() AS base_datos,
+        current_user AS usuario,
+        COUNT(*) FILTER (WHERE ruccedpro IS NULL OR BTRIM(ruccedpro) = '') AS ruc_vacios,
+        COUNT(*) FILTER (WHERE ruccedpro IS NOT NULL AND BTRIM(ruccedpro) <> '') AS ruc_con_datos
+      FROM compras
+    `);
+
     const result = await client.query(`
       SELECT
         numfaccom AS numero,
@@ -27,21 +36,18 @@ async function compras(req, res) {
     `, [inicio, fin]);
 
     return res.json({
-      diagnostico: 'ruc_compras',
+      diagnostico: 'verificacion_ruc_y_base',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
+      base: info.rows[0],
       filas: result.rows.length,
       total: result.rows.length,
-      compras: result.rows.map(r => ({
-        ...r,
-        rucCed: r.rucCed || '-',
-        proveedor: `TIPO: ${r.tipoProveedor || '-'} | LONGITUD RUC: ${r.rucLongitud ?? 0}`,
-      })),
+      compras: result.rows,
     });
   } catch (error) {
     return res.status(500).json({
-      error: 'Error consultando compras.',
+      error: 'Error verificando RUC.',
       detail: error.message,
       tiempoMs: Date.now() - inicioConsulta,
     });
