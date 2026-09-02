@@ -17,7 +17,8 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // PRUEBA 2: número de factura + RUC/Cédula, sin joins ni otras columnas.
+    // PRUEBA 2: número de factura + RUC/Cédula.
+    // No mostrar compras cuyo estado de proceso sea ANULADA.
     client = pool.createDedicatedClient();
     await client.connect();
 
@@ -29,6 +30,7 @@ async function compras(req, res) {
         FROM compras c
         WHERE c.feccompra >= $1::date
           AND c.feccompra <= $2::date
+          AND (c.estproces IS NULL OR UPPER(TRIM(c.estproces)) <> 'ANULADA')
         ORDER BY c.feccompra DESC, c.numfaccom DESC
       `,
       values: [inicio, fin],
