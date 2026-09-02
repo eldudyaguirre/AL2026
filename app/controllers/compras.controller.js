@@ -2,21 +2,23 @@ const pool = require('../database/postgres');
 
 async function consultar(text, values = []) {
   const client = await pool.connect();
-  let liberado = false;
 
   try {
-    await client.query("SET statement_timeout = '5000ms'");
-    return await client.query({
+    await client.query("SET statement_timeout = '8000ms'");
+    const result = await client.query({
       text,
       values,
-      query_timeout: 6000,
+      query_timeout: 9000,
     });
+
+    // Esta ruta ha mostrado problemas al reutilizar conexiones del pool.
+    // Descartamos la conexión después de cada consulta para evitar reutilizar
+    // una conexión que haya quedado en un estado inconsistente.
+    client.release(new Error('Descartar conexión después de consulta de compras'));
+    return result;
   } catch (error) {
     client.release(error);
-    liberado = true;
     throw error;
-  } finally {
-    if (!liberado) client.release();
   }
 }
 
@@ -38,27 +40,30 @@ async function compras(req, res) {
 
     const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
 
-    // PostgreSQL responde correctamente por bloques de columnas. Evitamos
-    // devolver todos los campos de una fila en una sola consulta.
-    const [basicos, importes, proveedores] = await Promise.all([
-      consultar(
-        `SELECT numfaccom AS numero,
-                ruccedpro AS "rucCed",
-                feccompra AS fecha,
-                numautori AS autorizacion
-         FROM compras
-         WHERE ${rango}`
-      ),
-      consultar(
-        `SELECT numfaccom AS numero,
-                totsiniva AS "subtotalSinIva",
-                totconiva AS "subtotalConIva",
-                totcompra AS total
-         FROM compras
-         WHERE ${rango}`
-      ),
-      consultar(`SELECT ruccedpro, nomprovee FROM proveedores`),
-    ]);
+    // Consultamos de forma secuencial y con una conexión nueva por consulta.
+    // Las pruebas anteriores demostraron que cada consulta individual funciona;
+    // el problema aparece al reutilizar conexiones del pool o ejecutarlas juntas.
+    const basicos = await consultar(
+      `SELECT numfaccom AS numero,
+              ruccedpro AS "rucCed",
+              feccompra AS fecha,
+              numautori AS autorizacion
+       FROM compras
+       WHERE ${rango}`
+    );
+
+    const importes = await consultar(
+      `SELECT numfaccom AS numero,
+              totsiniva AS "subtotalSinIva",
+              totconiva AS "subtotalConIva",
+              totcompra AS total
+       FROM compras
+       WHERE ${rango}`
+    );
+
+    const proveedores = await consultar(
+      `SELECT ruccedpro, nomprovee FROM proveedores`
+    );
 
     const importesMap = new Map(
       importes.rows.map(r => [String(r.numero), r])
