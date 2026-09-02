@@ -60,7 +60,7 @@ async function compras(req, res) {
         'fecha', c.feccompra,
         'autorizacion', c.numautori,
         'subtotalSinIva', c.totsiniva,
-        'subtotalConIva', c.totcompra,
+        'subtotalConIva', c.totconiva,
         'total', c.totcompra,
         'origen', 'comprasnv'
       ) AS datos
