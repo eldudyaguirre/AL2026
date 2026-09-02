@@ -1,5 +1,30 @@
 const pool = require('../database/postgres');
 
+async function diagnosticarBloqueos() {
+  try {
+    const result = await pool.query(`
+      SELECT
+        a.pid,
+        a.state,
+        a.wait_event_type AS "waitEventType",
+        a.wait_event AS "waitEvent",
+        l.mode,
+        l.granted,
+        a.query,
+        EXTRACT(EPOCH FROM (clock_timestamp() - a.query_start))::integer AS "duracionSegundos"
+      FROM pg_locks l
+      JOIN pg_class c ON c.oid = l.relation
+      JOIN pg_stat_activity a ON a.pid = l.pid
+      WHERE c.relname IN ('compras', 'comprasnv', 'proveedores')
+      ORDER BY l.granted, a.query_start NULLS LAST
+    `);
+    return result.rows;
+  } catch (error) {
+    console.error('[COMPRAS] No se pudo diagnosticar bloqueos:', error.message);
+    return [];
+  }
+}
+
 async function compras(req, res) {
   const inicioConsulta = Date.now();
   let etapa = 'inicio';
@@ -97,11 +122,14 @@ async function compras(req, res) {
       waiting: pool.waitingCount,
     });
 
+    const bloqueos = error.message === 'Query read timeout' ? await diagnosticarBloqueos() : [];
+
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
       detail: error.message,
       etapa,
       tiempoMs,
+      bloqueos,
     });
   }
 }
