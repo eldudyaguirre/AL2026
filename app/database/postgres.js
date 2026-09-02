@@ -2,7 +2,8 @@ const { Pool } = require('pg');
 
 function createPool() {
   const commonOptions = {
-    max: Number(process.env.DB_POOL_MAX || 10),
+    // Hasta 20 conexiones PostgreSQL reutilizables para soportar la concurrencia esperada.
+    max: Number(process.env.DB_POOL_MAX || 20),
     idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT || 10000),
     connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT || 5000),
     query_timeout: Number(process.env.DB_QUERY_TIMEOUT || 10000),
