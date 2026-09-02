@@ -1,24 +1,38 @@
 const { Pool } = require('pg');
 
 function createPool() {
+  const commonOptions = {
+    max: Number(process.env.DB_POOL_MAX || 10),
+    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT || 10000),
+    connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT || 5000),
+    query_timeout: Number(process.env.DB_QUERY_TIMEOUT || 10000),
+    statement_timeout: Number(process.env.DB_STATEMENT_TIMEOUT || 10000),
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  };
+
   if (process.env.DATABASE_URL) {
     return new Pool({
+      ...commonOptions,
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
-      connectionTimeoutMillis: 10000,
     });
   }
 
   return new Pool({
+    ...commonOptions,
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT || 5432),
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    connectionTimeoutMillis: 10000,
   });
 }
 
 const pool = createPool();
+
+pool.on('error', (error) => {
+  console.error('PostgreSQL pool error:', error.message);
+});
 
 module.exports = pool;
