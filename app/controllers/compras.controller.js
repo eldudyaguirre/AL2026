@@ -18,36 +18,34 @@ async function compras(req, res) {
 
     console.log(`[COMPRAS] Inicio consulta ${inicio} a ${fin}`);
 
+    // Consultamos cada tabla sin JOIN para evitar que una relación con proveedores
+    // pueda bloquear o ralentizar la consulta principal.
     const sqlCompras = `
       SELECT
-        c.numfaccom AS numero,
-        c.ruccedpro AS "rucCed",
-        COALESCE(p.nomprovee, 'PROVEEDOR NO REGISTRADO') AS proveedor,
-        c.feccompra AS fecha,
-        c.numautori AS autorizacion,
-        c.totsiniva AS "subtotalSinIva",
-        c.totconiva AS "subtotalConIva",
-        c.totcompra AS total,
+        numfaccom AS numero,
+        ruccedpro AS "rucCed",
+        feccompra AS fecha,
+        numautori AS autorizacion,
+        totsiniva AS "subtotalSinIva",
+        totconiva AS "subtotalConIva",
+        totcompra AS total,
         'compras' AS origen
-      FROM compras c
-      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
-      WHERE c.feccompra BETWEEN $1::date AND $2::date
+      FROM compras
+      WHERE feccompra BETWEEN $1::date AND $2::date
     `;
 
     const sqlComprasNv = `
       SELECT
-        c.numfaccom AS numero,
-        c.ruccedpro AS "rucCed",
-        COALESCE(p.nomprovee, 'PROVEEDOR NO REGISTRADO') AS proveedor,
-        c.feccompra AS fecha,
-        c.numautori AS autorizacion,
-        c.totsiniva AS "subtotalSinIva",
-        c.totconiva AS "subtotalConIva",
-        c.totcompra AS total,
+        numfaccom AS numero,
+        ruccedpro AS "rucCed",
+        feccompra AS fecha,
+        numautori AS autorizacion,
+        totsiniva AS "subtotalSinIva",
+        totconiva AS "subtotalConIva",
+        totcompra AS total,
         'comprasnv' AS origen
-      FROM comprasnv c
-      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
-      WHERE c.feccompra BETWEEN $1::date AND $2::date
+      FROM comprasnv
+      WHERE feccompra BETWEEN $1::date AND $2::date
     `;
 
     const inicioCompras = Date.now();
@@ -59,6 +57,28 @@ async function compras(req, res) {
     console.log(`[COMPRAS] tabla comprasnv: ${resultComprasNv.rows.length} registros en ${Date.now() - inicioComprasNv} ms`);
 
     const filas = [...resultCompras.rows, ...resultComprasNv.rows];
+
+    // Obtenemos los proveedores en una consulta independiente.
+    const rucs = [...new Set(filas.map((fila) => fila.rucCed).filter(Boolean))];
+    const proveedores = new Map();
+
+    if (rucs.length) {
+      const inicioProveedores = Date.now();
+      const resultProveedores = await pool.query(
+        `SELECT ruccedpro, nomprovee FROM proveedores WHERE ruccedpro = ANY($1::text[])`,
+        [rucs]
+      );
+
+      for (const proveedor of resultProveedores.rows) {
+        proveedores.set(String(proveedor.ruccedpro), proveedor.nomprovee);
+      }
+
+      console.log(`[COMPRAS] proveedores: ${resultProveedores.rows.length} encontrados en ${Date.now() - inicioProveedores} ms`);
+    }
+
+    for (const fila of filas) {
+      fila.proveedor = proveedores.get(String(fila.rucCed)) || 'PROVEEDOR NO REGISTRADO';
+    }
 
     filas.sort((a, b) => {
       const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
