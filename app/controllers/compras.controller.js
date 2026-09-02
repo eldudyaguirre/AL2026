@@ -14,8 +14,7 @@ async function compras(req, res) {
     const result = await client.query(`
       SELECT
         c.numfaccom AS numero,
-        c.ruccedpro AS rucCed,
-        p.ruccedpro AS rucProveedor,
+        p.ruccedpro AS rucCed,
         p.nomprovee AS proveedor,
         c.numautori AS autorizacion,
         c.feccompra AS fecha
@@ -29,7 +28,7 @@ async function compras(req, res) {
     `, [inicio, fin]);
 
     return res.json({
-      diagnostico: 'compras_con_proveedor',
+      diagnostico: 'compras_ruc_proveedor',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
