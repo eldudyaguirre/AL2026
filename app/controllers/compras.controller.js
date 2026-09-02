@@ -1,6 +1,8 @@
 const pool = require('../database/postgres');
 
 async function compras(req, res) {
+  const inicioConsulta = Date.now();
+
   try {
     const hoy = new Date().toISOString().slice(0, 10);
     const inicio = req.query.inicio || hoy;
@@ -13,6 +15,8 @@ async function compras(req, res) {
     if (inicio > fin) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
+
+    console.log(`[COMPRAS] Inicio consulta ${inicio} a ${fin}`);
 
     const sql = `
       SELECT
@@ -49,6 +53,9 @@ async function compras(req, res) {
     `;
 
     const result = await pool.query(sql, [inicio, fin]);
+    const tiempoMs = Date.now() - inicioConsulta;
+
+    console.log(`[COMPRAS] Consulta completada: ${result.rows.length} registros en ${tiempoMs} ms`);
 
     return res.json({
       inicio,
@@ -57,10 +64,18 @@ async function compras(req, res) {
       compras: result.rows,
     });
   } catch (error) {
-    console.error('Error consultando compras:', error);
+    const tiempoMs = Date.now() - inicioConsulta;
+    console.error(`[COMPRAS] Error después de ${tiempoMs} ms:`, error.message);
+    console.error('[COMPRAS] Pool:', {
+      total: pool.totalCount,
+      idle: pool.idleCount,
+      waiting: pool.waitingCount,
+    });
+
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
       detail: error.message,
+      tiempoMs,
     });
   }
 }
