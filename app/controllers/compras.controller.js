@@ -3,6 +3,7 @@ const pool = require('../database/postgres');
 async function probar(nombre, text, values = []) {
   const inicio = Date.now();
   const client = await pool.connect();
+  let liberado = false;
 
   try {
     await client.query("SET statement_timeout = '3000ms'");
@@ -15,7 +16,9 @@ async function probar(nombre, text, values = []) {
       resultado: result.rows.slice(0, 3),
     };
   } catch (error) {
+    // La conexión se elimina del pool si la consulta falla.
     client.release(error);
+    liberado = true;
     return {
       nombre,
       ok: false,
@@ -23,7 +26,7 @@ async function probar(nombre, text, values = []) {
       error: error.message,
     };
   } finally {
-    if (!client.released) client.release();
+    if (!liberado) client.release();
   }
 }
 
