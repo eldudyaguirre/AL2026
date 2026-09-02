@@ -8,34 +8,34 @@ async function compras(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
-    // PRUEBA PROVEEDORES: consultar únicamente la tabla proveedores,
-    // sin JOIN y sin intervenir la tabla compras.
+    // PRUEBA PROVEEDOR: buscar un proveedor específico por RUC/Cédula.
     const result = await client.query({
       text: `
         SELECT
           ruccedpro AS "rucCed",
           nomprovee AS proveedor
         FROM proveedores
-        ORDER BY ruccedpro
-        LIMIT 10
+        WHERE ruccedpro = $1
       `,
+      values: ['0790002350001'],
     });
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] PRUEBA PROVEEDORES API: ${result.rows.length} registros en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] PRUEBA PROVEEDOR API: ${result.rows.length} registro(s) en ${tiempoMs} ms`);
 
     return res.json({
-      prueba: 'API tabla proveedores',
+      prueba: 'API proveedor por RUC',
+      rucConsultado: '0790002350001',
       total: result.rows.length,
       tiempoMs,
       compras: result.rows,
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] PRUEBA PROVEEDORES API - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] PRUEBA PROVEEDOR API - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
-      error: 'No se pudieron consultar los proveedores.',
+      error: 'No se pudo consultar el proveedor.',
       detail: error.message,
       tiempoMs,
     });
