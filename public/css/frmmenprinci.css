@@ -1,4 +1,13 @@
-*{box-sizing:border-box}:root{--blue:#073674;--green:#24be24;--dark:#3f3f3f;--light:#f4f5f7}
+*{box-sizing:border-box}
+
+:root{
+    --blue:#073674;
+    --green:#24be24;
+    --dark:#3f3f3f;
+    --light:#f4f5f7;
+    --orange: #F24603;
+    --bluetheme: #09203C
+}
 
 body{
     margin:0;
@@ -170,7 +179,7 @@ body{
     top:9px;
     bottom:9px;
     width:3px;
-    background:var(--green);
+    background:var(--orange);
     border-radius:0 3px 3px 0
 }
 
@@ -366,7 +375,7 @@ main{
 }
 
 .card:hover{
-    border-top-color:var(--green)
+    border-top-color:var(--orange)
 }
 
 .card-label{
