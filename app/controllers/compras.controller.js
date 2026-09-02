@@ -1,29 +1,20 @@
 const pool = require('../database/postgres');
 
-async function probar(nombre, text) {
-  const inicio = Date.now();
+async function consultar(text, values = []) {
   const client = await pool.connect();
   let liberado = false;
 
   try {
-    await client.query("SET statement_timeout = '3000ms'");
-    const result = await client.query({ text, query_timeout: 4000 });
-    return {
-      nombre,
-      ok: true,
-      ms: Date.now() - inicio,
-      filas: result.rowCount,
-      resultado: result.rows.slice(0, 5),
-    };
+    await client.query("SET statement_timeout = '5000ms'");
+    return await client.query({
+      text,
+      values,
+      query_timeout: 6000,
+    });
   } catch (error) {
     client.release(error);
     liberado = true;
-    return {
-      nombre,
-      ok: false,
-      ms: Date.now() - inicio,
-      error: error.message,
-    };
+    throw error;
   } finally {
     if (!liberado) client.release();
   }
@@ -47,35 +38,96 @@ async function compras(req, res) {
 
     const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
 
-    // Las columnas de texto/fecha ya funcionan. Ahora aislamos cada campo numeric.
-    const pruebas = [
-      probar('solo_totsiniva', `SELECT totsiniva FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_totconiva', `SELECT totconiva FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_totcompra', `SELECT totcompra FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_subtotcom', `SELECT subtotcom FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_valdescom', `SELECT valdescom FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_valivacom', `SELECT valivacom FROM compras WHERE ${rango} LIMIT 20`),
-      probar('todos_importes', `SELECT totsiniva, totconiva, totcompra, subtotcom, valdescom, valivacom FROM compras WHERE ${rango} LIMIT 20`),
-      probar('basicos_importes', `SELECT numfaccom, ruccedpro, feccompra, numautori, totsiniva, totconiva, totcompra FROM compras WHERE ${rango} LIMIT 20`),
-    ];
+    // PostgreSQL responde correctamente por bloques de columnas. Evitamos
+    // devolver todos los campos de una fila en una sola consulta.
+    const [basicos, importes, proveedores] = await Promise.all([
+      consultar(
+        `SELECT numfaccom AS numero,
+                ruccedpro AS "rucCed",
+                feccompra AS fecha,
+                numautori AS autorizacion
+         FROM compras
+         WHERE ${rango}`
+      ),
+      consultar(
+        `SELECT numfaccom AS numero,
+                totsiniva AS "subtotalSinIva",
+                totconiva AS "subtotalConIva",
+                totcompra AS total
+         FROM compras
+         WHERE ${rango}`
+      ),
+      consultar(`SELECT ruccedpro, nomprovee FROM proveedores`),
+    ]);
 
-    const resultados = [];
-    for (const prueba of pruebas) {
-      resultados.push(await prueba);
-    }
+    const importesMap = new Map(
+      importes.rows.map(r => [String(r.numero), r])
+    );
+
+    const proveedoresMap = new Map(
+      proveedores.rows.map(p => [String(p.ruccedpro), p.nomprovee])
+    );
+
+    const comprasRows = basicos.rows.map(r => {
+      const valores = importesMap.get(String(r.numero)) || {};
+
+      return {
+        numero: r.numero,
+        rucCed: r.rucCed,
+        proveedor: proveedoresMap.get(String(r.rucCed)) || 'PROVEEDOR NO REGISTRADO',
+        fecha: r.fecha,
+        autorizacion: r.autorizacion,
+        subtotalSinIva: valores.subtotalSinIva ?? null,
+        subtotalConIva: valores.subtotalConIva ?? null,
+        total: valores.total ?? null,
+        origen: 'compras',
+      };
+    });
+
+    const comprasNv = await consultar(
+      `SELECT numfaccom AS numero,
+              ruccedpro AS "rucCed",
+              feccompra AS fecha,
+              numautori AS autorizacion,
+              totsiniva AS "subtotalSinIva",
+              totconiva AS "subtotalConIva",
+              totcompra AS total
+       FROM comprasnv
+       WHERE ${rango}`
+    );
+
+    const comprasNvRows = comprasNv.rows.map(r => ({
+      ...r,
+      proveedor: proveedoresMap.get(String(r.rucCed)) || 'PROVEEDOR NO REGISTRADO',
+      origen: 'comprasnv',
+    }));
+
+    const filas = [...comprasRows, ...comprasNvRows];
+
+    filas.sort((a, b) => {
+      const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
+      const fechaB = b.fecha ? new Date(b.fecha).getTime() : 0;
+      if (fechaB !== fechaA) return fechaB - fechaA;
+      return String(b.numero || '').localeCompare(String(a.numero || ''));
+    });
+
+    const tiempoMs = Date.now() - inicioConsulta;
+    console.log(`[COMPRAS] ${filas.length} registros en ${tiempoMs} ms`);
 
     return res.json({
-      diagnostico: true,
       inicio,
       fin,
-      tiempoMs: Date.now() - inicioConsulta,
-      pruebas: resultados,
+      total: filas.length,
+      compras: filas,
     });
   } catch (error) {
+    const tiempoMs = Date.now() - inicioConsulta;
+    console.error(`[COMPRAS] Error después de ${tiempoMs} ms:`, error.message);
+
     return res.status(500).json({
-      error: 'Error durante el diagnóstico de compras.',
+      error: 'No se pudieron consultar las compras.',
       detail: error.message,
-      tiempoMs: Date.now() - inicioConsulta,
+      tiempoMs,
     });
   }
 }
