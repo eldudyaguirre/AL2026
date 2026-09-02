@@ -1,17 +1,17 @@
 const pool = require('../database/postgres');
 
-async function consultarJson(text, values = []) {
+async function consultar(text, values = []) {
   const client = await pool.connect();
 
   try {
-    await client.query("SET statement_timeout = '15000ms'");
+    await client.query("SET statement_timeout = '5000ms'");
     const result = await client.query({
       text,
       values,
-      query_timeout: 16000,
+      query_timeout: 6000,
     });
     client.release();
-    return result.rows.map(row => row.datos);
+    return result.rows;
   } catch (error) {
     client.release(error);
     throw error;
@@ -34,43 +34,79 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    const sql = `
-      SELECT json_build_object(
-        'numero', c.numfaccom,
-        'rucCed', c.ruccedpro,
-        'proveedor', COALESCE(p.nomprovee, 'PROVEEDOR NO REGISTRADO'),
-        'fecha', c.feccompra,
-        'autorizacion', c.numautori,
-        'subtotalSinIva', c.totsiniva,
-        'subtotalConIva', c.totconiva,
-        'total', c.totcompra,
-        'origen', 'compras'
-      ) AS datos
-      FROM compras c
-      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
-      WHERE c.feccompra >= $1::date
-        AND c.feccompra <= $2::date
+    const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
 
-      UNION ALL
+    // Cada campo se consulta por separado porque las pruebas demostraron que
+    // PostgreSQL responde bien a cada columna individualmente, pero algunas
+    // combinaciones provocan Query read timeout a través de pg/Railway.
+    const numeros = await consultar(
+      `SELECT numfaccom AS numero FROM compras WHERE ${rango} ORDER BY numfaccom`
+    );
 
-      SELECT json_build_object(
-        'numero', c.numfaccom,
-        'rucCed', c.ruccedpro,
-        'proveedor', COALESCE(p.nomprovee, 'PROVEEDOR NO REGISTRADO'),
-        'fecha', c.feccompra,
-        'autorizacion', c.numautori,
-        'subtotalSinIva', c.totsiniva,
-        'subtotalConIva', c.totconiva,
-        'total', c.totcompra,
-        'origen', 'comprasnv'
-      ) AS datos
-      FROM comprasnv c
-      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
-      WHERE c.feccompra >= $1::date
-        AND c.feccompra <= $2::date
-    `;
+    const rucs = await consultar(
+      `SELECT numfaccom AS numero, ruccedpro AS "rucCed" FROM compras WHERE ${rango} ORDER BY numfaccom`
+    );
 
-    const filas = await consultarJson(sql, [inicio, fin]);
+    const fechas = await consultar(
+      `SELECT numfaccom AS numero, feccompra AS fecha FROM compras WHERE ${rango} ORDER BY numfaccom`
+    );
+
+    const autorizaciones = await consultar(
+      `SELECT numfaccom AS numero, numautori AS autorizacion FROM compras WHERE ${rango} ORDER BY numfaccom`
+    );
+
+    const importes = await consultar(
+      `SELECT numfaccom AS numero, totsiniva AS "subtotalSinIva", totconiva AS "subtotalConIva", totcompra AS total FROM compras WHERE ${rango} ORDER BY numfaccom`
+    );
+
+    const proveedores = await consultar(
+      `SELECT ruccedpro, nomprovee FROM proveedores ORDER BY ruccedpro`
+    );
+
+    const comprasNv = await consultar(
+      `SELECT numfaccom AS numero,
+              ruccedpro AS "rucCed",
+              feccompra AS fecha,
+              numautori AS autorizacion,
+              totsiniva AS "subtotalSinIva",
+              totconiva AS "subtotalConIva",
+              totcompra AS total
+       FROM comprasnv
+       WHERE ${rango}
+       ORDER BY numfaccom`
+    );
+
+    const rucMap = new Map(rucs.map(r => [String(r.numero), r.rucCed]));
+    const fechaMap = new Map(fechas.map(r => [String(r.numero), r.fecha]));
+    const autorizacionMap = new Map(autorizaciones.map(r => [String(r.numero), r.autorizacion]));
+    const importeMap = new Map(importes.map(r => [String(r.numero), r]));
+    const proveedorMap = new Map(proveedores.map(p => [String(p.ruccedpro), p.nomprovee]));
+
+    const comprasRows = numeros.map(r => {
+      const numero = String(r.numero);
+      const rucCed = rucMap.get(numero) ?? null;
+      const importe = importeMap.get(numero) || {};
+
+      return {
+        numero: r.numero,
+        rucCed,
+        proveedor: proveedorMap.get(String(rucCed)) || 'PROVEEDOR NO REGISTRADO',
+        fecha: fechaMap.get(numero) ?? null,
+        autorizacion: autorizacionMap.get(numero) ?? null,
+        subtotalSinIva: importe.subtotalSinIva ?? null,
+        subtotalConIva: importe.subtotalConIva ?? null,
+        total: importe.total ?? null,
+        origen: 'compras',
+      };
+    });
+
+    const comprasNvRows = comprasNv.map(r => ({
+      ...r,
+      proveedor: proveedorMap.get(String(r.rucCed)) || 'PROVEEDOR NO REGISTRADO',
+      origen: 'comprasnv',
+    }));
+
+    const filas = [...comprasRows, ...comprasNvRows];
 
     filas.sort((a, b) => {
       const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
