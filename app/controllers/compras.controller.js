@@ -11,39 +11,53 @@ async function compras(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
-    // Diagnóstico: contar registros sin seleccionar ningún campo de las compras.
-    // Así comprobamos el TOTAL real del rango sin involucrar numautori,
-    // proveedores ni el mapeo de columnas del listado.
-    const comprasResult = await client.query(`
-      SELECT COUNT(*)::integer AS total
-      FROM compras
-      WHERE feccompra >= $1::date
-        AND feccompra <= $2::date
-    `, [inicio, fin]);
+    const result = await client.query(`
+      SELECT
+        c.numfaccom AS "numero",
+        p.ruccedpro AS "rucCed",
+        p.nomprovee AS "proveedor",
+        c.numautori AS "autorizacion",
+        c.feccompra AS "fecha",
+        COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
+        COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
+        COALESCE(c.totcompra, 0)::text AS "total"
+      FROM compras c
+      LEFT JOIN proveedores p
+        ON p.ruccedpro = c.ruccedpro
+      WHERE c.feccompra >= $1::date
+        AND c.feccompra <= $2::date
 
-    const comprasNvResult = await client.query(`
-      SELECT COUNT(*)::integer AS total
-      FROM comprasnv
-      WHERE feccompra >= $1::date
-        AND feccompra <= $2::date
-    `, [inicio, fin]);
+      UNION ALL
 
-    const totalCompras = comprasResult.rows[0].total;
-    const totalComprasNv = comprasNvResult.rows[0].total;
-    const total = totalCompras + totalComprasNv;
+      SELECT
+        c.numfaccom AS "numero",
+        p.ruccedpro AS "rucCed",
+        p.nomprovee AS "proveedor",
+        c.numautori AS "autorizacion",
+        c.feccompra AS "fecha",
+        COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
+        COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
+        COALESCE(c.totcompra, 0)::text AS "total"
+      FROM comprasnv c
+      LEFT JOIN proveedores p
+        ON p.ruccedpro = c.ruccedpro
+      WHERE c.feccompra >= $1::date
+        AND c.feccompra <= $2::date
+
+      ORDER BY "fecha" DESC, "numero" DESC
+    `, [inicio, fin]);
 
     return res.json({
-      diagnostico: 'compras_total',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
-      totalCompras,
-      totalComprasNv,
-      total,
+      total: result.rows.length,
+      compras: result.rows,
     });
   } catch (error) {
+    console.error('[COMPRAS] Error consultando compras:', error);
     return res.status(500).json({
-      error: 'Error consultando total de compras.',
+      error: 'Error consultando compras.',
       detail: error.message,
       tiempoMs: Date.now() - inicioConsulta,
     });
