@@ -11,43 +11,35 @@ async function compras(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
-    const info = await client.query(`
-      SELECT
-        current_database() AS base_datos,
-        current_user AS usuario,
-        COUNT(*) FILTER (WHERE ruccedpro IS NULL OR BTRIM(ruccedpro) = '') AS ruc_vacios,
-        COUNT(*) FILTER (WHERE ruccedpro IS NOT NULL AND BTRIM(ruccedpro) <> '') AS ruc_con_datos
-      FROM compras
-    `);
-
     const result = await client.query(`
       SELECT
-        numfaccom AS numero,
-        ruccedpro AS rucCed,
-        LENGTH(ruccedpro) AS rucLongitud,
-        tpidprov AS tipoProveedor,
-        numautori AS autorizacion,
-        feccompra AS fecha
-      FROM compras
-      WHERE feccompra >= $1::date
-        AND feccompra <= $2::date
-      ORDER BY feccompra DESC, numfaccom DESC
+        c.numfaccom AS numero,
+        c.ruccedpro AS rucCed,
+        p.ruccedpro AS rucProveedor,
+        p.nomprovee AS proveedor,
+        c.numautori AS autorizacion,
+        c.feccompra AS fecha
+      FROM compras c
+      LEFT JOIN proveedores p
+        ON p.ruccedpro = c.ruccedpro
+      WHERE c.feccompra >= $1::date
+        AND c.feccompra <= $2::date
+      ORDER BY c.feccompra DESC, c.numfaccom DESC
       LIMIT 5
     `, [inicio, fin]);
 
     return res.json({
-      diagnostico: 'verificacion_ruc_y_base',
+      diagnostico: 'compras_con_proveedor',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
-      base: info.rows[0],
       filas: result.rows.length,
       total: result.rows.length,
       compras: result.rows,
     });
   } catch (error) {
     return res.status(500).json({
-      error: 'Error verificando RUC.',
+      error: 'Error consultando compras.',
       detail: error.message,
       tiempoMs: Date.now() - inicioConsulta,
     });
