@@ -22,9 +22,8 @@ async function cargarDashboard(){
     const data=await response.json();
     const usuario=data.usuario||'';
     const nombre=data.nombre||usuario||'-';
-    document.getElementById('usuario').textContent=usuario;
-    document.getElementById('profile-name').textContent=nombre;
-    document.getElementById('profile-user').textContent=usuario;
+    document.getElementById('profile-name').textContent=usuario;
+    document.getElementById('profile-user').textContent=nombre;
     document.getElementById('nombre').textContent=nombre;
     document.getElementById('api-value').textContent='OK';
     document.getElementById('db-value').textContent='OK';
