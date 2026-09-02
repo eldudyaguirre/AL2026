@@ -8,7 +8,7 @@ async function compras(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
-    // PRUEBA JOIN: una sola compra + su proveedor.
+    // PRUEBA JOIN: dos compras + sus proveedores.
     const result = await client.query({
       text: `
         SELECT
@@ -18,27 +18,30 @@ async function compras(req, res) {
         FROM compras c
         LEFT JOIN proveedores p
           ON p.ruccedpro = c.ruccedpro
-        WHERE c.numfaccom = $1
+        WHERE c.feccompra >= $1::date
+          AND c.feccompra <= $2::date
+          AND (c.estproces IS NULL OR UPPER(TRIM(c.estproces)) <> 'ANULADA')
+        ORDER BY c.feccompra DESC, c.numfaccom DESC
+        LIMIT 2
       `,
-      values: ['009-004-002084595'],
+      values: ['2026-08-31', '2026-09-02'],
     });
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] PRUEBA JOIN INDIVIDUAL: ${result.rows.length} registro(s) en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] PRUEBA JOIN 2 REGISTROS: ${result.rows.length} registro(s) en ${tiempoMs} ms`);
 
     return res.json({
-      prueba: 'API JOIN una compra + proveedor',
-      facturaConsultada: '009-004-002084595',
+      prueba: 'API JOIN 2 compras + proveedores',
       total: result.rows.length,
       tiempoMs,
       compras: result.rows,
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] PRUEBA JOIN INDIVIDUAL - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] PRUEBA JOIN 2 REGISTROS - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
-      error: 'No se pudo consultar la compra con su proveedor.',
+      error: 'No se pudieron consultar las compras.',
       detail: error.message,
       tiempoMs,
     });
