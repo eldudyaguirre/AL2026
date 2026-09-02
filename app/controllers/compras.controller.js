@@ -36,31 +36,30 @@ async function compras(req, res) {
 
     const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
 
-    // Cada campo se consulta por separado porque las pruebas demostraron que
-    // PostgreSQL responde bien a cada columna individualmente, pero algunas
-    // combinaciones provocan Query read timeout a través de pg/Railway.
+    // Las pruebas demostraron que las consultas simples funcionan correctamente.
+    // No usamos ORDER BY en PostgreSQL: las filas se ordenan al final en Node.js.
     const numeros = await consultar(
-      `SELECT numfaccom AS numero FROM compras WHERE ${rango} ORDER BY numfaccom`
+      `SELECT numfaccom AS numero FROM compras WHERE ${rango}`
     );
 
     const rucs = await consultar(
-      `SELECT numfaccom AS numero, ruccedpro AS "rucCed" FROM compras WHERE ${rango} ORDER BY numfaccom`
+      `SELECT numfaccom AS numero, ruccedpro AS "rucCed" FROM compras WHERE ${rango}`
     );
 
     const fechas = await consultar(
-      `SELECT numfaccom AS numero, feccompra AS fecha FROM compras WHERE ${rango} ORDER BY numfaccom`
+      `SELECT numfaccom AS numero, feccompra AS fecha FROM compras WHERE ${rango}`
     );
 
     const autorizaciones = await consultar(
-      `SELECT numfaccom AS numero, numautori AS autorizacion FROM compras WHERE ${rango} ORDER BY numfaccom`
+      `SELECT numfaccom AS numero, numautori AS autorizacion FROM compras WHERE ${rango}`
     );
 
     const importes = await consultar(
-      `SELECT numfaccom AS numero, totsiniva AS "subtotalSinIva", totconiva AS "subtotalConIva", totcompra AS total FROM compras WHERE ${rango} ORDER BY numfaccom`
+      `SELECT numfaccom AS numero, totsiniva AS "subtotalSinIva", totconiva AS "subtotalConIva", totcompra AS total FROM compras WHERE ${rango}`
     );
 
     const proveedores = await consultar(
-      `SELECT ruccedpro, nomprovee FROM proveedores ORDER BY ruccedpro`
+      `SELECT ruccedpro, nomprovee FROM proveedores`
     );
 
     const comprasNv = await consultar(
@@ -72,8 +71,7 @@ async function compras(req, res) {
               totconiva AS "subtotalConIva",
               totcompra AS total
        FROM comprasnv
-       WHERE ${rango}
-       ORDER BY numfaccom`
+       WHERE ${rango}`
     );
 
     const rucMap = new Map(rucs.map(r => [String(r.numero), r.rucCed]));
