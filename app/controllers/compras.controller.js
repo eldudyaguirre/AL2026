@@ -47,15 +47,16 @@ async function compras(req, res) {
 
     const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
 
-    // El COUNT del rango ya funciona. Ahora probamos cada columna por separado
-    // para encontrar cuál provoca el timeout al devolver las filas.
+    // Las columnas de texto/fecha ya funcionan. Ahora aislamos cada campo numeric.
     const pruebas = [
-      probar('solo_numfaccom', `SELECT numfaccom FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_ruccedpro', `SELECT ruccedpro FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_feccompra', `SELECT feccompra FROM compras WHERE ${rango} LIMIT 20`),
-      probar('solo_numautori', `SELECT numautori FROM compras WHERE ${rango} LIMIT 20`),
-      probar('numero_y_fecha', `SELECT numfaccom, feccompra FROM compras WHERE ${rango} LIMIT 20`),
-      probar('numero_ruc_fecha', `SELECT numfaccom, ruccedpro, feccompra FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_totsiniva', `SELECT totsiniva FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_totconiva', `SELECT totconiva FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_totcompra', `SELECT totcompra FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_subtotcom', `SELECT subtotcom FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_valdescom', `SELECT valdescom FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_valivacom', `SELECT valivacom FROM compras WHERE ${rango} LIMIT 20`),
+      probar('todos_importes', `SELECT totsiniva, totconiva, totcompra, subtotcom, valdescom, valivacom FROM compras WHERE ${rango} LIMIT 20`),
+      probar('basicos_importes', `SELECT numfaccom, ruccedpro, feccompra, numautori, totsiniva, totconiva, totcompra FROM compras WHERE ${rango} LIMIT 20`),
     ];
 
     const resultados = [];
