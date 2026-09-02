@@ -7,8 +7,8 @@ async function cargarUsuario(){try{const r=await fetch('/api/session');if(!r.ok)
 function formatoFecha(valor){if(!valor)return '-';const texto=String(valor);const match=texto.match(/^(\d{4})-(\d{2})-(\d{2})/);if(match)return `${match[3]}/${match[2]}/${match[1]}`;const d=new Date(valor);if(Number.isNaN(d.getTime()))return texto.slice(0,10);return d.toLocaleDateString('es-EC')}
 function dinero(valor){if(valor===null||valor===undefined||valor==='')return '-';const n=Number(valor);return Number.isFinite(n)?n.toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2}):String(valor)}
 function texto(valor){return valor===null||valor===undefined||valor===''?'-':String(valor)}
-function pintarFilas(rows){comprasActuales=rows||[];const tbody=document.getElementById('compras-body');if(!comprasActuales.length){tbody.innerHTML='<tr><td colspan="8" class="empty">No existen compras para el rango seleccionado.</td></tr>';return}tbody.innerHTML=comprasActuales.map(r=>`<tr><td>${texto(r.numero)}</td><td>${texto(r.rucCed||r.rucced||r.rucProveedor)}</td><td>${texto(r.proveedor)}</td><td>${formatoFecha(r.fecha)}</td><td>${texto(r.autorizacion)}</td><td class="number">${dinero(r.subtotalSinIva)}</td><td class="number">${dinero(r.subtotalConIva)}</td><td class="number">${dinero(r.total)}</td></tr>`).join('')}
-async function cargarCompras(){const inicio=document.getElementById('fecha-inicio').value;const fin=document.getElementById('fecha-fin').value;const tbody=document.getElementById('compras-body');tbody.innerHTML='<tr><td colspan="8" class="loading">Consultando compras...</td></tr>';const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),35000);try{const r=await fetch(`/api/compras?inicio=${encodeURIComponent(inicio)}&fin=${encodeURIComponent(fin)}&_=${Date.now()}`,{signal:controller.signal});const textoRespuesta=await r.text();let d={};try{d=JSON.parse(textoRespuesta)}catch(_){throw new Error(`El servidor respondió con HTTP ${r.status} sin JSON válido.`)}if(!r.ok)throw new Error(d.error||d.detail||`Error HTTP ${r.status}`);pintarFilas(d.compras||[]);document.getElementById('count').textContent=`${d.total||0} registro(s)`}catch(e){comprasActuales=[];const mensaje=e.name==='AbortError'?'La consulta excedió los 35 segundos. Verifica la conexión con PostgreSQL.':(e.message||'No se pudieron consultar las compras.');tbody.innerHTML=`<tr><td colspan="8" class="error">${texto(mensaje)}</td></tr>`;document.getElementById('count').textContent='Error'}finally{clearTimeout(timer)}}
+function pintarFilas(rows){comprasActuales=rows||[];const tbody=document.getElementById('compras-body');if(!comprasActuales.length){tbody.innerHTML='<tr><td colspan="9" class="empty">No existen compras para el rango seleccionado.</td></tr>';return}tbody.innerHTML=comprasActuales.map(r=>`<tr><td>${texto(r.numero)}</td><td>${texto(r.rucCed||r.rucced||r.rucProveedor)}</td><td>${texto(r.proveedor)}</td><td>${formatoFecha(r.fecha)}</td><td>${texto(r.autorizacion)}</td><td class="number">${dinero(r.subtotalSinIva)}</td><td class="number">${dinero(r.subtotalConIva)}</td><td class="number">${dinero(r.iva)}</td><td class="number">${dinero(r.total)}</td></tr>`).join('')}
+async function cargarCompras(){const inicio=document.getElementById('fecha-inicio').value;const fin=document.getElementById('fecha-fin').value;const tbody=document.getElementById('compras-body');tbody.innerHTML='<tr><td colspan="9" class="loading">Consultando compras...</td></tr>';const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),35000);try{const r=await fetch(`/api/compras?inicio=${encodeURIComponent(inicio)}&fin=${encodeURIComponent(fin)}&_=${Date.now()}`,{signal:controller.signal});const textoRespuesta=await r.text();let d={};try{d=JSON.parse(textoRespuesta)}catch(_){throw new Error(`El servidor respondió con HTTP ${r.status} sin JSON válido.`)}if(!r.ok)throw new Error(d.error||d.detail||`Error HTTP ${r.status}`);pintarFilas(d.compras||[]);document.getElementById('count').textContent=`${d.total||0} registro(s)`}catch(e){comprasActuales=[];const mensaje=e.name==='AbortError'?'La consulta excedió los 35 segundos. Verifica la conexión con PostgreSQL.':(e.message||'No se pudieron consultar las compras.');tbody.innerHTML=`<tr><td colspan="9" class="error">${texto(mensaje)}</td></tr>`;document.getElementById('count').textContent='Error'}finally{clearTimeout(timer)}}
 function fechasIniciales(){const hoy=new Date();const y=hoy.getFullYear();const m=String(hoy.getMonth()+1).padStart(2,'0');const d=String(hoy.getDate()).padStart(2,'0');document.getElementById('fecha-inicio').value=`${y}-${m}-${d}`;document.getElementById('fecha-fin').value=`${y}-${m}-${d}`}
 function exportarPDF(){
   if(!comprasActuales.length){alert('Primero debe consultar las compras que desea exportar.');return}
@@ -29,30 +29,18 @@ function exportarPDF(){
   doc.text('ROMERO APOLO LUIS HILDER',148.5,30,{align:'center'});
   doc.text('RUC.0701005514001',148.5,36,{align:'center'});
   const body=comprasActuales.map((r,i)=>[
-    String(i+1),
-    texto(r.proveedor),
-    texto(r.rucCed||r.rucced||r.rucProveedor),
-    'FAC',
-    formatoFecha(r.fecha),
-    texto(r.numero),
-    texto(r.autorizacion),
-    money(r.subtotalSinIva),
-    money(r.subtotalConIva),
-    money(r.total)
+    String(i+1),texto(r.proveedor),texto(r.rucCed||r.rucced||r.rucProveedor),'FAC',formatoFecha(r.fecha),texto(r.numero),texto(r.autorizacion),money(r.subtotalSinIva),money(r.subtotalConIva),money(r.iva),money(r.total)
   ]);
   doc.autoTable({
     startY:41,
-    head:[['N°','PROVEEDOR','RUC','TIP DOC','FECHA','NUMERO FACTURA','NUM AUT.','BASE SIN IVA','BASE CON IVA','TOTAL']],
+    head:[['N°','PROVEEDOR','RUC','TIP DOC','FECHA','NUMERO FACTURA','NUM AUT.','BASE SIN IVA','BASE CON IVA','IVA','TOTAL']],
     body,
     theme:'grid',
-    styles:{font:'helvetica',fontSize:6.2,cellPadding:1.2,lineColor:[100,100,100],lineWidth:0.15,textColor:[20,20,20],overflow:'linebreak',valign:'middle'},
-    headStyles:{fontStyle:'bold',fontSize:6.3,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
-    columnStyles:{0:{cellWidth:8,halign:'center'},1:{cellWidth:55},2:{cellWidth:29},3:{cellWidth:16,halign:'center'},4:{cellWidth:22,halign:'center'},5:{cellWidth:34},6:{cellWidth:53},7:{cellWidth:23,halign:'right'},8:{cellWidth:23,halign:'right'},9:{cellWidth:22,halign:'right'}},
+    styles:{font:'helvetica',fontSize:5.9,cellPadding:1.1,lineColor:[100,100,100],lineWidth:0.15,textColor:[20,20,20],overflow:'linebreak',valign:'middle'},
+    headStyles:{fontStyle:'bold',fontSize:6.1,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
+    columnStyles:{0:{cellWidth:7,halign:'center'},1:{cellWidth:52},2:{cellWidth:27},3:{cellWidth:14,halign:'center'},4:{cellWidth:21,halign:'center'},5:{cellWidth:32},6:{cellWidth:49},7:{cellWidth:21,halign:'right'},8:{cellWidth:21,halign:'right'},9:{cellWidth:17,halign:'right'},10:{cellWidth:20,halign:'right'}},
     margin:{left:8,right:8,top:41,bottom:12},
-    didDrawPage:()=>{
-      const page=doc.internal.getNumberOfPages();
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`pag. ${page}`,289,202,{align:'right'});
-    }
+    didDrawPage:()=>{const page=doc.internal.getNumberOfPages();doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`pag. ${page}`,289,202,{align:'right'})}
   });
   const nombre=`compras_${inicio||'inicio'}_${fin||'fin'}.pdf`;
   doc.save(nombre);
