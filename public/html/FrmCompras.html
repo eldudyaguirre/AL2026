@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/svg+xml" href="/img/logonuevov2.svg?v=20260901">
+  <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/eldudyaguirre/AL2026/main/public/img/logonuevov2.svg?v=20260901">
   <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
-  <link rel="stylesheet" href="/css/FrmCompras.css?v=20260902">
-  <title>Avicola Luisin - Compras</title>
+  <link rel="stylesheet" href="/css/FrmCompras.css">
+  <title>Administrativo - Compras</title>
 </head>
 <body>
 <div class="layout">
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-top"><div class="brand"><img class="brand-logo" src="/img/logonuevov2.svg?v=20260901" alt="Avicola y Porcina Luisin"></div><button class="close-btn" onclick="cerrarMenu()" aria-label="Cerrar menú">×</button></div>
+    <div class="sidebar-top"><div class="brand"><img class="brand-logo" src="https://raw.githubusercontent.com/eldudyaguirre/AL2026/main/public/img/logonuevov2.svg?v=20260901" alt="Avicola y Porcina Luisin"></div><button class="close-btn" onclick="cerrarMenu()" aria-label="Cerrar menú">×</button></div>
     <div class="profile"><div class="profile-avatar"><img src="/img/usuario.svg" alt="Usuario"></div><div class="profile-info"><div class="profile-name" id="profile-name">Usuario</div><div class="profile-user" id="profile-user">Cargando...</div></div></div>
     <div class="menu-title">Menú principal</div>
     <nav aria-label="Menú principal"><ul class="menu">
@@ -19,10 +19,10 @@
       <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)"><i class="fi fi-rr-feather icon"></i><span>Avícola</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#">Granja 1</a></li><li><a href="#">Granja 2</a></li><li><a href="#">Pesaje</a></li><li><a href="#">Reportes</a></li><li><a href="#">Parámetros</a></li></ul></li>
       <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)"><i class="fi fi-rr-pig icon"></i><span>Porcina</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#">Granja 1</a></li><li><a href="#">Granja 2</a></li><li><a href="#">Pesaje</a></li><li><a href="#">Reportes</a></li><li><a href="#">Parámetros</a></li></ul></li>
       <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#">Inventario</a></li><li><a href="#">Items</a></li><li><a href="#">Producción</a></li><li><a href="#">Órdenes de compra</a></li></ul></li>
-      <li class="menu-group open"><button type="button" class="menu-parent active" onclick="toggleSubmenu(this)" aria-expanded="true"><i class="fi fi-rr-briefcase icon"></i><span>Administrativo</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/FrmCompras.html" class="active">Compras</a></li><li><a href="#">Cuentas por pagar</a></li><li><a href="#">Ventas</a></li><li><a href="#">Cuentas por cobrar</a></li><li><a href="#">Balances</a></li><li><a href="#">Roles</a></li></ul></li>
+      <li class="menu-group open"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="true"><i class="fi fi-rr-briefcase icon"></i><span>Administrativo</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/FrmCompras.html" class="active">Compras</a></li><li><a href="#">Cuentas por pagar</a></li><li><a href="#">Ventas</a></li><li><a href="#">Cuentas por cobrar</a></li><li><a href="#">Balances</a></li><li><a href="#">Roles</a></li></ul></li>
       <li><a href="#"><i class="fi fi-rr-settings icon"></i><span>Configuración</span></a></li>
     </ul></nav>
-    <div class="sidebar-bottom"><button class="logout-link" onclick="cerrarSesion()"><i class="fi fi-rr-sign-out-alt icon"></i><span>Cerrar sesión</span></button><a class="flaticon-credit" href="https://www.flaticon.com/" target="_blank" rel="noopener noreferrer">Iconos por Flaticon</a></div>
+    <div class="sidebar-bottom"><button class="logout-link" onclick="cerrarSesion()"><i class="fi fi-rr-sign-out-alt icon"></i><span>Cerrar sesión</span></button></div>
   </aside>
   <div class="overlay" id="overlay" onclick="cerrarMenu()"></div>
   <section class="content">
@@ -35,6 +35,6 @@
     </main>
   </section>
 </div>
-<script src="/js/FrmCompras.js?v=20260902"></script>
+<script src="/js/FrmCompras.js"></script>
 </body>
 </html>
