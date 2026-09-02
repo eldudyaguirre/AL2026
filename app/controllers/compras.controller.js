@@ -1,28 +1,33 @@
 const pool = require('../database/postgres');
 
-async function diagnosticarBloqueos() {
-  try {
-    const result = await pool.query(`
-      SELECT
-        a.pid,
-        a.state,
-        a.wait_event_type AS "waitEventType",
-        a.wait_event AS "waitEvent",
-        l.mode,
-        l.granted,
-        a.query,
-        EXTRACT(EPOCH FROM (clock_timestamp() - a.query_start))::integer AS "duracionSegundos"
-      FROM pg_locks l
-      JOIN pg_class c ON c.oid = l.relation
-      JOIN pg_stat_activity a ON a.pid = l.pid
-      WHERE c.relname IN ('compras', 'comprasnv', 'proveedores')
-      ORDER BY l.granted, a.query_start NULLS LAST
-    `);
-    return result.rows;
-  } catch (error) {
-    console.error('[COMPRAS] No se pudo diagnosticar bloqueos:', error.message);
-    return [];
-  }
+async function pruebaLecturaCompras() {
+  const diagnostico = {};
+
+  const pruebas = [
+    ['selectUno', 'SELECT 1 AS ok FROM compras LIMIT 1'],
+    ['selectFactura', 'SELECT numfaccom FROM compras LIMIT 1'],
+    ['count', 'SELECT COUNT(*)::integer AS total FROM compras'],
+  ];
+
+  await Promise.all(pruebas.map(async ([nombre, sql]) => {
+    const inicio = Date.now();
+    try {
+      const result = await pool.query({ text: sql, query_timeout: 3000 });
+      diagnostico[nombre] = {
+        ok: true,
+        ms: Date.now() - inicio,
+        resultado: result.rows[0] || null,
+      };
+    } catch (error) {
+      diagnostico[nombre] = {
+        ok: false,
+        ms: Date.now() - inicio,
+        error: error.message,
+      };
+    }
+  }));
+
+  return diagnostico;
 }
 
 async function compras(req, res) {
@@ -122,14 +127,16 @@ async function compras(req, res) {
       waiting: pool.waitingCount,
     });
 
-    const bloqueos = error.message === 'Query read timeout' ? await diagnosticarBloqueos() : [];
+    const diagnostico = etapa === 'SELECT compras' && error.message === 'Query read timeout'
+      ? await pruebaLecturaCompras()
+      : null;
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
       detail: error.message,
       etapa,
       tiempoMs,
-      bloqueos,
+      diagnostico,
     });
   }
 }
