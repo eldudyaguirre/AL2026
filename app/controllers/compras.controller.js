@@ -19,7 +19,8 @@ async function compras(req, res) {
         c.numautori AS "autorizacion",
         c.feccompra AS "fecha",
         COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
-        COALESCE(c.totconiva, 0)::text AS "subtotalConIva"
+        COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
+        COALESCE(c.totcompra, 0)::text AS "total"
       FROM compras c
       LEFT JOIN proveedores p
         ON p.ruccedpro = c.ruccedpro
@@ -30,7 +31,7 @@ async function compras(req, res) {
     `, [inicio, fin]);
 
     return res.json({
-      diagnostico: 'compras_subtotales',
+      diagnostico: 'compras_total',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
