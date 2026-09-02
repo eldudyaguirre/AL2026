@@ -1,43 +1,23 @@
 const pool = require('../database/postgres');
 
-// Diccionario en memoria: solo se cargan los proveedores que realmente aparecen
-// en las compras consultadas. No se lee la tabla proveedores completa.
-const proveedoresMap = new Map();
-
-async function buscarProveedor(rucCed) {
-  const ruc = String(rucCed || '').trim();
-  if (!ruc) return null;
-
-  if (proveedoresMap.has(ruc)) {
-    return proveedoresMap.get(ruc);
-  }
-
-  let client;
+async function ejecutarPrueba(client, nombre, text, values) {
+  const inicio = Date.now();
   try {
-    client = pool.createDedicatedClient();
-    await client.connect();
-
-    const result = await client.query({
-      text: `
-        SELECT nomprovee
-        FROM proveedores
-        WHERE ruccedpro = $1
-        LIMIT 1
-      `,
-      values: [ruc],
-    });
-
-    const nombre = result.rows.length ? result.rows[0].nomprovee : null;
-    proveedoresMap.set(ruc, nombre);
-    return nombre;
-  } finally {
-    if (client) {
-      try {
-        await client.end();
-      } catch (error) {
-        console.error('[COMPRAS] Error cerrando cliente proveedor:', error.message);
-      }
-    }
+    const result = await client.query({ text, values });
+    return {
+      nombre,
+      ok: true,
+      ms: Date.now() - inicio,
+      filas: result.rows.length,
+      resultado: result.rows.slice(0, 5),
+    };
+  } catch (error) {
+    return {
+      nombre,
+      ok: false,
+      ms: Date.now() - inicio,
+      error: error.message,
+    };
   }
 }
 
@@ -46,81 +26,73 @@ async function compras(req, res) {
   let client;
 
   try {
-    const hoy = new Date().toISOString().slice(0, 10);
-    const inicio = req.query.inicio || hoy;
-    const fin = req.query.fin || hoy;
+    const inicio = req.query.inicio || '2026-08-31';
+    const fin = req.query.fin || '2026-09-02';
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fin)) {
-      return res.status(400).json({ error: 'Las fechas deben tener formato YYYY-MM-DD.' });
-    }
-
-    if (inicio > fin) {
-      return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
-    }
-
-    // Consulta estable: número, RUC, proveedor y fecha.
     client = pool.createDedicatedClient();
     await client.connect();
 
-    const result = await client.query({
-      text: `
-        SELECT
-          c.numfaccom AS numero,
-          c.ruccedpro AS "rucCed",
-          c.feccompra AS fecha
-        FROM compras c
-        WHERE c.feccompra >= $1::date
-          AND c.feccompra <= $2::date
-          AND (c.estproces IS NULL OR UPPER(TRIM(c.estproces)) <> 'ANULADA')
-      `,
-      values: [inicio, fin],
-    });
+    const pruebas = [];
 
-    const filasBase = result.rows;
+    pruebas.push(await ejecutarPrueba(client, '1_count', `
+      SELECT COUNT(*) AS total
+      FROM compras
+      WHERE feccompra >= $1::date
+        AND feccompra <= $2::date
+        AND (estproces IS NULL OR UPPER(TRIM(estproces)) <> 'ANULADA')
+    `, [inicio, fin]));
 
-    const rucs = [...new Set(
-      filasBase
-        .map(fila => String(fila.rucCed || '').trim())
-        .filter(Boolean)
-    )];
+    pruebas.push(await ejecutarPrueba(client, '2_length_numautori', `
+      SELECT numfaccom AS numero, LENGTH(numautori) AS longitud
+      FROM compras
+      WHERE feccompra >= $1::date
+        AND feccompra <= $2::date
+        AND (estproces IS NULL OR UPPER(TRIM(estproces)) <> 'ANULADA')
+    `, [inicio, fin]));
 
-    const nombres = await Promise.all(
-      rucs.map(async ruc => [ruc, await buscarProveedor(ruc)])
-    );
+    pruebas.push(await ejecutarPrueba(client, '3_left_numautori', `
+      SELECT numfaccom AS numero, LEFT(numautori, 10) AS autorizacion_parcial
+      FROM compras
+      WHERE feccompra >= $1::date
+        AND feccompra <= $2::date
+        AND (estproces IS NULL OR UPPER(TRIM(estproces)) <> 'ANULADA')
+    `, [inicio, fin]));
 
-    const proveedores = new Map(nombres);
+    pruebas.push(await ejecutarPrueba(client, '4_numautori_texto', `
+      SELECT numfaccom AS numero, numautori::text AS autorizacion
+      FROM compras
+      WHERE feccompra >= $1::date
+        AND feccompra <= $2::date
+        AND (estproces IS NULL OR UPPER(TRIM(estproces)) <> 'ANULADA')
+    `, [inicio, fin]));
 
-    const filas = filasBase.map(fila => ({
-      numero: fila.numero,
-      rucCed: fila.rucCed,
-      proveedor: proveedores.get(String(fila.rucCed || '').trim()) || 'PROVEEDOR NO REGISTRADO',
-      fecha: fila.fecha,
-    }));
-
-    const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] ESTABLE NUMERO + RUC + PROVEEDOR + FECHA: ${filas.length} compras, ${rucs.length} proveedores consultados en ${tiempoMs} ms`);
+    pruebas.push(await ejecutarPrueba(client, '5_numautori_completo', `
+      SELECT numfaccom AS numero, numautori AS autorizacion
+      FROM compras
+      WHERE feccompra >= $1::date
+        AND feccompra <= $2::date
+        AND (estproces IS NULL OR UPPER(TRIM(estproces)) <> 'ANULADA')
+    `, [inicio, fin]));
 
     return res.json({
+      diagnostico: 'numautori',
       inicio,
       fin,
-      total: filas.length,
-      compras: filas,
+      tiempoMs: Date.now() - inicioConsulta,
+      pruebas,
     });
   } catch (error) {
-    const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] Error después de ${tiempoMs} ms:`, error.message);
-
     return res.status(500).json({
-      error: 'No se pudieron consultar las compras.',
+      error: 'Error en diagnóstico numautori.',
       detail: error.message,
-      tiempoMs,
+      tiempoMs: Date.now() - inicioConsulta,
     });
   } finally {
     if (client) {
       try {
         await client.end();
       } catch (error) {
-        console.error('[COMPRAS] Error cerrando cliente de compras:', error.message);
+        console.error('[COMPRAS] Error cerrando cliente:', error.message);
       }
     }
   }
