@@ -6,8 +6,10 @@ function createPool() {
     max: Number(process.env.DB_POOL_MAX || 20),
     idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT || 10000),
     connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT || 5000),
-    query_timeout: Number(process.env.DB_QUERY_TIMEOUT || 10000),
-    statement_timeout: Number(process.env.DB_STATEMENT_TIMEOUT || 10000),
+    // No usamos query_timeout: node-postgres lo aplica al lado cliente y puede
+    // producir "Query read timeout" aunque PostgreSQL haya procesado la consulta.
+    // El límite de ejecución lo controla PostgreSQL mediante statement_timeout.
+    statement_timeout: Number(process.env.DB_STATEMENT_TIMEOUT || 30000),
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000,
   };
