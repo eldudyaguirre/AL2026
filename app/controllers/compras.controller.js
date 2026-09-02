@@ -17,57 +17,27 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // Para este módulo usamos una conexión TCP nueva, sin reutilizar conexiones
-    // del pool que pudieran haber quedado bloqueadas por un problema de red.
+    // PRUEBA 1: traer únicamente el número de factura de compras.
     client = pool.createDedicatedClient();
     await client.connect();
 
     const result = await client.query({
       text: `
-        SELECT
-          c.numfaccom AS numero,
-          c.ruccedpro AS "rucCed",
-          p.nomprovee AS proveedor,
-          c.feccompra AS fecha,
-          c.numautori AS autorizacion,
-          c.totsiniva AS "subtotalSinIva",
-          c.totconiva AS "subtotalConIva",
-          c.totcompra AS total,
-          'compras' AS origen
+        SELECT c.numfaccom AS numero
         FROM compras c
-        LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
         WHERE c.feccompra >= $1::date
           AND c.feccompra <= $2::date
-
-        UNION ALL
-
-        SELECT
-          c.numfaccom AS numero,
-          c.ruccedpro AS "rucCed",
-          p.nomprovee AS proveedor,
-          c.feccompra AS fecha,
-          c.numautori AS autorizacion,
-          c.totsiniva AS "subtotalSinIva",
-          c.totconiva AS "subtotalConIva",
-          c.totcompra AS total,
-          'comprasnv' AS origen
-        FROM comprasnv c
-        LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
-        WHERE c.feccompra >= $1::date
-          AND c.feccompra <= $2::date
-
-        ORDER BY fecha DESC NULLS LAST, numero DESC
+        ORDER BY c.feccompra DESC, c.numfaccom DESC
       `,
       values: [inicio, fin],
     });
 
     const filas = result.rows.map(fila => ({
-      ...fila,
-      proveedor: fila.proveedor || 'PROVEEDOR NO REGISTRADO',
+      numero: fila.numero,
     }));
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] ${filas.length} registros en ${tiempoMs} ms (cliente dedicado)`);
+    console.log(`[COMPRAS] PRUEBA 1: ${filas.length} números en ${tiempoMs} ms`);
 
     return res.json({
       inicio,
@@ -77,7 +47,7 @@ async function compras(req, res) {
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] PRUEBA 1 - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
