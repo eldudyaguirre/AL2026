@@ -1,23 +1,34 @@
 const pool = require('../database/postgres');
 
-async function ejecutarConsulta(text, timeoutMs = 10000) {
+async function probar(nombre, text, values = []) {
+  const inicio = Date.now();
   const client = await pool.connect();
 
   try {
-    // El timeout se aplica en PostgreSQL, evitando depender del timeout de lectura
-    // del cliente de node-postgres.
-    await client.query(`SET statement_timeout = '${timeoutMs}ms'`);
-    return await client.query(text);
+    await client.query("SET statement_timeout = '3000ms'");
+    const result = await client.query({ text, values, query_timeout: 4000 });
+    return {
+      nombre,
+      ok: true,
+      ms: Date.now() - inicio,
+      filas: result.rowCount,
+      resultado: result.rows.slice(0, 3),
+    };
   } catch (error) {
-    // Si una consulta falla o expira, no devolvemos esa conexión al pool.
     client.release(error);
-    throw error;
+    return {
+      nombre,
+      ok: false,
+      ms: Date.now() - inicio,
+      error: error.message,
+    };
+  } finally {
+    if (!client.released) client.release();
   }
 }
 
 async function compras(req, res) {
   const inicioConsulta = Date.now();
-  let etapa = 'inicio';
 
   try {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -32,109 +43,34 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    console.log(`[COMPRAS] Inicio consulta ${inicio} a ${fin}`);
+    // Diagnóstico temporal: comprobamos exactamente qué operación sobre compras
+    // está demorando en la conexión de Railway.
+    const pruebas = [
+      probar('conexion', `SELECT current_database() AS database, current_schema() AS schema, current_user AS usuario`),
+      probar('countCompras', `SELECT COUNT(*)::integer AS total FROM compras`),
+      probar('primeraCompra', `SELECT numfaccom, ruccedpro, feccompra, numautori FROM compras LIMIT 1`),
+      probar('fechaMinMax', `SELECT MIN(feccompra) AS minimo, MAX(feccompra) AS maximo FROM compras`),
+      probar('countRango', `SELECT COUNT(*)::integer AS total FROM compras WHERE feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`),
+      probar('comprasRango', `SELECT numfaccom, ruccedpro, feccompra, numautori FROM compras WHERE feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}' LIMIT 20`),
+    ];
 
-    // Las fechas ya fueron validadas con expresión regular, por lo que pueden
-    // incorporarse como literales DATE. Esto elimina cualquier problema con
-    // parámetros preparados en esta consulta.
-    const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
+    const resultados = [];
+    for (const prueba of pruebas) {
+      resultados.push(await prueba);
+    }
 
-    etapa = 'SELECT compras básicos';
-    const inicioBasicos = Date.now();
-    const resultBasicos = await ejecutarConsulta(
-      `SELECT numfaccom AS numero,
-              ruccedpro AS "rucCed",
-              feccompra AS fecha,
-              numautori AS autorizacion
-       FROM compras
-       WHERE ${rango}`
-    );
-    console.log(`[COMPRAS] básicos: ${resultBasicos.rows.length} registros en ${Date.now() - inicioBasicos} ms`);
-
-    etapa = 'SELECT compras numéricos';
-    const inicioNumericos = Date.now();
-    const resultNumericos = await ejecutarConsulta(
-      `SELECT numfaccom AS numero,
-              totsiniva AS "subtotalSinIva",
-              totconiva AS "subtotalConIva",
-              totcompra AS total
-       FROM compras
-       WHERE ${rango}`
-    );
-    console.log(`[COMPRAS] numéricos: ${resultNumericos.rows.length} registros en ${Date.now() - inicioNumericos} ms`);
-
-    etapa = 'SELECT comprasnv';
-    const inicioComprasNv = Date.now();
-    const resultComprasNv = await ejecutarConsulta(
-      `SELECT numfaccom AS numero,
-              ruccedpro AS "rucCed",
-              feccompra AS fecha,
-              numautori AS autorizacion,
-              totsiniva AS "subtotalSinIva",
-              totconiva AS "subtotalConIva",
-              totcompra AS total,
-              'comprasnv' AS origen
-       FROM comprasnv
-       WHERE ${rango}`
-    );
-    console.log(`[COMPRAS] comprasnv: ${resultComprasNv.rows.length} registros en ${Date.now() - inicioComprasNv} ms`);
-
-    const numericos = new Map(
-      resultNumericos.rows.map(r => [String(r.numero), r])
-    );
-
-    const compras = resultBasicos.rows.map(r => {
-      const valores = numericos.get(String(r.numero)) || {};
-      return {
-        ...r,
-        subtotalSinIva: valores.subtotalSinIva ?? null,
-        subtotalConIva: valores.subtotalConIva ?? null,
-        total: valores.total ?? null,
-        origen: 'compras',
-      };
+    return res.json({
+      diagnostico: true,
+      inicio,
+      fin,
+      tiempoMs: Date.now() - inicioConsulta,
+      pruebas: resultados,
     });
-
-    etapa = 'SELECT proveedores';
-    const inicioProveedores = Date.now();
-    const resultProveedores = await ejecutarConsulta(
-      `SELECT ruccedpro, nomprovee FROM proveedores`
-    );
-    console.log(`[COMPRAS] proveedores: ${resultProveedores.rows.length} registros en ${Date.now() - inicioProveedores} ms`);
-
-    const proveedores = new Map(
-      resultProveedores.rows.map(p => [String(p.ruccedpro), p.nomprovee])
-    );
-
-    const filas = [...compras, ...resultComprasNv.rows].map(fila => ({
-      ...fila,
-      proveedor: proveedores.get(String(fila.rucCed)) || 'PROVEEDOR NO REGISTRADO',
-    }));
-
-    filas.sort((a, b) => {
-      const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
-      const fechaB = b.fecha ? new Date(b.fecha).getTime() : 0;
-      if (fechaB !== fechaA) return fechaB - fechaA;
-      return String(b.numero || '').localeCompare(String(a.numero || ''));
-    });
-
-    const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] Consulta completada: ${filas.length} registros en ${tiempoMs} ms`);
-
-    return res.json({ inicio, fin, total: filas.length, compras: filas });
   } catch (error) {
-    const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] Error en ${etapa} después de ${tiempoMs} ms:`, error.message);
-    console.error('[COMPRAS] Pool:', {
-      total: pool.totalCount,
-      idle: pool.idleCount,
-      waiting: pool.waitingCount,
-    });
-
     return res.status(500).json({
-      error: 'No se pudieron consultar las compras.',
+      error: 'Error durante el diagnóstico de compras.',
       detail: error.message,
-      etapa,
-      tiempoMs,
+      tiempoMs: Date.now() - inicioConsulta,
     });
   }
 }
