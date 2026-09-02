@@ -30,11 +30,13 @@
     <main class="page">
       <h1 class="heading">Compras</h1>
       <p class="subtitle">Consulta de compras registradas</p>
-      <section class="filters"><div class="field"><label for="fecha-inicio">Fecha de inicio</label><input type="date" id="fecha-inicio"></div><div class="field"><label for="fecha-fin">Fecha de fin</label><input type="date" id="fecha-fin"></div><button class="btn-consultar" type="button" onclick="cargarCompras()">Consultar</button></section>
+      <section class="filters"><div class="field"><label for="fecha-inicio">Fecha de inicio</label><input type="date" id="fecha-inicio"></div><div class="field"><label for="fecha-fin">Fecha de fin</label><input type="date" id="fecha-fin"></div><button class="btn-consultar" type="button" onclick="cargarCompras()">Consultar</button><button class="btn-pdf" type="button" onclick="exportarPDF()"><i class="fi fi-rr-file-pdf"></i><span>Exportar PDF</span></button></section>
       <section class="list-card"><div class="list-header"><div class="list-title">Listado de compras</div><div class="count" id="count">0 registro(s)</div></div><div class="table-wrap"><table class="compras-table"><thead><tr><th>Número de factura</th><th>RUC/Ced</th><th>Proveedor</th><th>Fecha</th><th>Autorización</th><th>Subtotal sin IVA</th><th>Subtotal con IVA</th><th>Total</th></tr></thead><tbody id="compras-body"><tr><td colspan="8" class="loading">Consultando compras...</td></tr></tbody></table></div></section>
     </main>
   </section>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="/js/FrmCompras.js"></script>
 </body>
 </html>
