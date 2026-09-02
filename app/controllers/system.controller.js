@@ -29,6 +29,20 @@ async function health(req, res) {
   }
 }
 
+async function poolStatus(req, res) {
+  return res.json({
+    pool: {
+      total: pool.totalCount,
+      idle: pool.idleCount,
+      waiting: pool.waitingCount,
+    },
+    process: {
+      uptimeSeconds: Math.round(process.uptime()),
+      memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    },
+  });
+}
+
 async function comprasDiagnostico(req, res) {
   const resultados = {};
 
@@ -112,4 +126,4 @@ async function comprasDiagnostico(req, res) {
   }
 }
 
-module.exports = { database, health, comprasDiagnostico };
+module.exports = { database, health, poolStatus, comprasDiagnostico };
