@@ -1,22 +1,21 @@
 const pool = require('../database/postgres');
 
-async function probar(nombre, text, values = []) {
+async function probar(nombre, text) {
   const inicio = Date.now();
   const client = await pool.connect();
   let liberado = false;
 
   try {
     await client.query("SET statement_timeout = '3000ms'");
-    const result = await client.query({ text, values, query_timeout: 4000 });
+    const result = await client.query({ text, query_timeout: 4000 });
     return {
       nombre,
       ok: true,
       ms: Date.now() - inicio,
       filas: result.rowCount,
-      resultado: result.rows.slice(0, 3),
+      resultado: result.rows.slice(0, 5),
     };
   } catch (error) {
-    // La conexión se elimina del pool si la consulta falla.
     client.release(error);
     liberado = true;
     return {
@@ -46,15 +45,17 @@ async function compras(req, res) {
       return res.status(400).json({ error: 'La fecha de inicio no puede ser mayor que la fecha de fin.' });
     }
 
-    // Diagnóstico temporal: comprobamos exactamente qué operación sobre compras
-    // está demorando en la conexión de Railway.
+    const rango = `feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`;
+
+    // El COUNT del rango ya funciona. Ahora probamos cada columna por separado
+    // para encontrar cuál provoca el timeout al devolver las filas.
     const pruebas = [
-      probar('conexion', `SELECT current_database() AS database, current_schema() AS schema, current_user AS usuario`),
-      probar('countCompras', `SELECT COUNT(*)::integer AS total FROM compras`),
-      probar('primeraCompra', `SELECT numfaccom, ruccedpro, feccompra, numautori FROM compras LIMIT 1`),
-      probar('fechaMinMax', `SELECT MIN(feccompra) AS minimo, MAX(feccompra) AS maximo FROM compras`),
-      probar('countRango', `SELECT COUNT(*)::integer AS total FROM compras WHERE feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}'`),
-      probar('comprasRango', `SELECT numfaccom, ruccedpro, feccompra, numautori FROM compras WHERE feccompra >= DATE '${inicio}' AND feccompra <= DATE '${fin}' LIMIT 20`),
+      probar('solo_numfaccom', `SELECT numfaccom FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_ruccedpro', `SELECT ruccedpro FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_feccompra', `SELECT feccompra FROM compras WHERE ${rango} LIMIT 20`),
+      probar('solo_numautori', `SELECT numautori FROM compras WHERE ${rango} LIMIT 20`),
+      probar('numero_y_fecha', `SELECT numfaccom, feccompra FROM compras WHERE ${rango} LIMIT 20`),
+      probar('numero_ruc_fecha', `SELECT numfaccom, ruccedpro, feccompra FROM compras WHERE ${rango} LIMIT 20`),
     ];
 
     const resultados = [];
