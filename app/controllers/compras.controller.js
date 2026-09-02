@@ -11,37 +11,39 @@ async function compras(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
-    const result = await client.query(`
-      SELECT
-        c.numfaccom AS "numero",
-        p.ruccedpro AS "rucCed",
-        p.nomprovee AS "proveedor",
-        c.numautori AS "autorizacion",
-        c.feccompra AS "fecha",
-        COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
-        COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
-        COALESCE(c.totcompra, 0)::text AS "total"
-      FROM compras c
-      LEFT JOIN proveedores p
-        ON p.ruccedpro = c.ruccedpro
-      WHERE c.feccompra >= $1::date
-        AND c.feccompra <= $2::date
-      ORDER BY c.feccompra DESC, c.numfaccom DESC
-      LIMIT 5
+    // Diagnóstico: contar registros sin seleccionar ningún campo de las compras.
+    // Así comprobamos el TOTAL real del rango sin involucrar numautori,
+    // proveedores ni el mapeo de columnas del listado.
+    const comprasResult = await client.query(`
+      SELECT COUNT(*)::integer AS total
+      FROM compras
+      WHERE feccompra >= $1::date
+        AND feccompra <= $2::date
     `, [inicio, fin]);
+
+    const comprasNvResult = await client.query(`
+      SELECT COUNT(*)::integer AS total
+      FROM comprasnv
+      WHERE feccompra >= $1::date
+        AND feccompra <= $2::date
+    `, [inicio, fin]);
+
+    const totalCompras = comprasResult.rows[0].total;
+    const totalComprasNv = comprasNvResult.rows[0].total;
+    const total = totalCompras + totalComprasNv;
 
     return res.json({
       diagnostico: 'compras_total',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
-      filas: result.rows.length,
-      total: result.rows.length,
-      compras: result.rows,
+      totalCompras,
+      totalComprasNv,
+      total,
     });
   } catch (error) {
     return res.status(500).json({
-      error: 'Error consultando compras.',
+      error: 'Error consultando total de compras.',
       detail: error.message,
       tiempoMs: Date.now() - inicioConsulta,
     });
