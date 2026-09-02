@@ -2,6 +2,7 @@ const pool = require('../database/postgres');
 
 async function compras(req, res) {
   const inicioConsulta = Date.now();
+  let etapa = 'inicio';
 
   try {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -18,10 +19,10 @@ async function compras(req, res) {
 
     console.log(`[COMPRAS] Inicio consulta ${inicio} a ${fin}`);
 
-    // Consultamos cada tabla sin JOIN para evitar que una relación con proveedores
-    // pueda bloquear o ralentizar la consulta principal.
-    const sqlCompras = `
-      SELECT
+    etapa = 'SELECT compras';
+    const inicioCompras = Date.now();
+    const resultCompras = await pool.query(
+      `SELECT
         numfaccom AS numero,
         ruccedpro AS "rucCed",
         feccompra AS fecha,
@@ -30,12 +31,16 @@ async function compras(req, res) {
         totconiva AS "subtotalConIva",
         totcompra AS total,
         'compras' AS origen
-      FROM compras
-      WHERE feccompra BETWEEN $1::date AND $2::date
-    `;
+       FROM compras
+       WHERE feccompra BETWEEN $1::date AND $2::date`,
+      [inicio, fin]
+    );
+    console.log(`[COMPRAS] tabla compras: ${resultCompras.rows.length} registros en ${Date.now() - inicioCompras} ms`);
 
-    const sqlComprasNv = `
-      SELECT
+    etapa = 'SELECT comprasnv';
+    const inicioComprasNv = Date.now();
+    const resultComprasNv = await pool.query(
+      `SELECT
         numfaccom AS numero,
         ruccedpro AS "rucCed",
         feccompra AS fecha,
@@ -44,41 +49,27 @@ async function compras(req, res) {
         totconiva AS "subtotalConIva",
         totcompra AS total,
         'comprasnv' AS origen
-      FROM comprasnv
-      WHERE feccompra BETWEEN $1::date AND $2::date
-    `;
-
-    const inicioCompras = Date.now();
-    const resultCompras = await pool.query(sqlCompras, [inicio, fin]);
-    console.log(`[COMPRAS] tabla compras: ${resultCompras.rows.length} registros en ${Date.now() - inicioCompras} ms`);
-
-    const inicioComprasNv = Date.now();
-    const resultComprasNv = await pool.query(sqlComprasNv, [inicio, fin]);
+       FROM comprasnv
+       WHERE feccompra BETWEEN $1::date AND $2::date`,
+      [inicio, fin]
+    );
     console.log(`[COMPRAS] tabla comprasnv: ${resultComprasNv.rows.length} registros en ${Date.now() - inicioComprasNv} ms`);
 
-    const filas = [...resultCompras.rows, ...resultComprasNv.rows];
+    etapa = 'SELECT proveedores';
+    const inicioProveedores = Date.now();
+    const resultProveedores = await pool.query(
+      `SELECT ruccedpro, nomprovee FROM proveedores`
+    );
+    console.log(`[COMPRAS] proveedores: ${resultProveedores.rows.length} registros en ${Date.now() - inicioProveedores} ms`);
 
-    // Obtenemos los proveedores en una consulta independiente.
-    const rucs = [...new Set(filas.map((fila) => fila.rucCed).filter(Boolean))];
-    const proveedores = new Map();
+    const proveedores = new Map(
+      resultProveedores.rows.map(p => [String(p.ruccedpro), p.nomprovee])
+    );
 
-    if (rucs.length) {
-      const inicioProveedores = Date.now();
-      const resultProveedores = await pool.query(
-        `SELECT ruccedpro, nomprovee FROM proveedores WHERE ruccedpro = ANY($1::text[])`,
-        [rucs]
-      );
-
-      for (const proveedor of resultProveedores.rows) {
-        proveedores.set(String(proveedor.ruccedpro), proveedor.nomprovee);
-      }
-
-      console.log(`[COMPRAS] proveedores: ${resultProveedores.rows.length} encontrados en ${Date.now() - inicioProveedores} ms`);
-    }
-
-    for (const fila of filas) {
-      fila.proveedor = proveedores.get(String(fila.rucCed)) || 'PROVEEDOR NO REGISTRADO';
-    }
+    const filas = [...resultCompras.rows, ...resultComprasNv.rows].map(fila => ({
+      ...fila,
+      proveedor: proveedores.get(String(fila.rucCed)) || 'PROVEEDOR NO REGISTRADO',
+    }));
 
     filas.sort((a, b) => {
       const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
@@ -99,7 +90,7 @@ async function compras(req, res) {
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] Error en ${etapa} después de ${tiempoMs} ms:`, error.message);
     console.error('[COMPRAS] Pool:', {
       total: pool.totalCount,
       idle: pool.idleCount,
@@ -109,6 +100,7 @@ async function compras(req, res) {
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
       detail: error.message,
+      etapa,
       tiempoMs,
     });
   }
