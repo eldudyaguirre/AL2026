@@ -9,13 +9,15 @@ async function compras(req, res) {
     await client.connect();
 
     const result = await client.query(`
-      SELECT numautori
+      SELECT
+        numautori,
+        LENGTH(numautori) AS longitud
       FROM compras
       LIMIT 5
     `);
 
     return res.json({
-      diagnostico: 'solo_numautori',
+      diagnostico: 'solo_numautori_longitud',
       tiempoMs: Date.now() - inicioConsulta,
       filas: result.rows.length,
       resultado: result.rows,
