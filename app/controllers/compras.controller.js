@@ -8,7 +8,7 @@ async function compras(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
-    // PRUEBA JOIN: 15 compras + sus proveedores, sin ORDER BY.
+    // PRUEBA: todas las compras del rango + proveedores, sin LIMIT ni ORDER BY.
     const result = await client.query({
       text: `
         SELECT
@@ -21,23 +21,22 @@ async function compras(req, res) {
         WHERE c.feccompra >= $1::date
           AND c.feccompra <= $2::date
           AND (c.estproces IS NULL OR UPPER(TRIM(c.estproces)) <> 'ANULADA')
-        LIMIT 15
       `,
       values: ['2026-08-31', '2026-09-02'],
     });
 
     const tiempoMs = Date.now() - inicioConsulta;
-    console.log(`[COMPRAS] PRUEBA JOIN 15 SIN ORDER BY: ${result.rows.length} registro(s) en ${tiempoMs} ms`);
+    console.log(`[COMPRAS] PRUEBA JOIN SIN LIMIT/ORDER BY: ${result.rows.length} registro(s) en ${tiempoMs} ms`);
 
     return res.json({
-      prueba: 'API JOIN 15 compras + proveedores sin ORDER BY',
+      prueba: 'API JOIN sin LIMIT ni ORDER BY',
       total: result.rows.length,
       tiempoMs,
       compras: result.rows,
     });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
-    console.error(`[COMPRAS] PRUEBA JOIN 15 SIN ORDER BY - Error después de ${tiempoMs} ms:`, error.message);
+    console.error(`[COMPRAS] PRUEBA JOIN SIN LIMIT/ORDER BY - Error después de ${tiempoMs} ms:`, error.message);
 
     return res.status(500).json({
       error: 'No se pudieron consultar las compras.',
