@@ -13,19 +13,21 @@ async function compras(req, res) {
 
     const result = await client.query(`
       SELECT
-        numfaccom AS numero,
-        ruccedpro AS rucCed,
-        numautori AS autorizacion,
-        feccompra AS fecha
-      FROM compras
-      WHERE feccompra >= $1::date
-        AND feccompra <= $2::date
-      ORDER BY feccompra DESC, numfaccom DESC
+        c.numfaccom AS numero,
+        c.ruccedpro AS rucCed,
+        LENGTH(c.ruccedpro) AS longitudRuc,
+        c.tpidprov AS tipoProveedor,
+        c.numautori AS autorizacion,
+        c.feccompra AS fecha
+      FROM compras c
+      WHERE c.feccompra >= $1::date
+        AND c.feccompra <= $2::date
+      ORDER BY c.feccompra DESC, c.numfaccom DESC
       LIMIT 5
     `, [inicio, fin]);
 
     return res.json({
-      diagnostico: 'compras_basicas',
+      diagnostico: 'compras_ruc',
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
@@ -35,7 +37,7 @@ async function compras(req, res) {
     });
   } catch (error) {
     return res.status(500).json({
-      error: 'Error consultando compras.',
+      error: 'Error consultando RUC de compras.',
       detail: error.message,
       tiempoMs: Date.now() - inicioConsulta,
     });
