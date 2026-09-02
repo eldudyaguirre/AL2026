@@ -1,31 +1,32 @@
 const pool = require('../database/postgres');
 
-async function pruebaLecturaCompras() {
-  const diagnostico = {};
-
+async function diagnosticoCompras(inicio, fin) {
   const pruebas = [
-    ['selectUno', 'SELECT 1 AS ok FROM compras LIMIT 1'],
-    ['selectFactura', 'SELECT numfaccom FROM compras LIMIT 1'],
-    ['count', 'SELECT COUNT(*)::integer AS total FROM compras'],
+    ['countRango', 'SELECT COUNT(*)::integer AS total FROM compras WHERE feccompra BETWEEN $1::date AND $2::date'],
+    ['unoRango', 'SELECT numfaccom, feccompra FROM compras WHERE feccompra BETWEEN $1::date AND $2::date LIMIT 1'],
+    ['columnasRango', `SELECT numfaccom AS numero, ruccedpro AS "rucCed", feccompra AS fecha, numautori AS autorizacion, totsiniva AS "subtotalSinIva", totconiva AS "subtotalConIva", totcompra AS total FROM compras WHERE feccompra BETWEEN $1::date AND $2::date LIMIT 20`],
+    ['todoSinFiltro', `SELECT numfaccom AS numero, ruccedpro AS "rucCed", feccompra AS fecha, numautori AS autorizacion, totsiniva AS "subtotalSinIva", totconiva AS "subtotalConIva", totcompra AS total FROM compras LIMIT 20`],
   ];
 
-  await Promise.all(pruebas.map(async ([nombre, sql]) => {
-    const inicio = Date.now();
+  const diagnostico = {};
+  for (const [nombre, sql] of pruebas) {
+    const inicioPrueba = Date.now();
     try {
-      const result = await pool.query({ text: sql, query_timeout: 3000 });
+      const result = await pool.query({ text: sql, values: [inicio, fin], query_timeout: 3000 });
       diagnostico[nombre] = {
         ok: true,
-        ms: Date.now() - inicio,
+        ms: Date.now() - inicioPrueba,
+        filas: result.rowCount,
         resultado: result.rows[0] || null,
       };
     } catch (error) {
       diagnostico[nombre] = {
         ok: false,
-        ms: Date.now() - inicio,
+        ms: Date.now() - inicioPrueba,
         error: error.message,
       };
     }
-  }));
+  }
 
   return diagnostico;
 }
@@ -104,7 +105,6 @@ async function compras(req, res) {
     filas.sort((a, b) => {
       const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
       const fechaB = b.fecha ? new Date(b.fecha).getTime() : 0;
-
       if (fechaB !== fechaA) return fechaB - fechaA;
       return String(b.numero || '').localeCompare(String(a.numero || ''));
     });
@@ -112,32 +112,17 @@ async function compras(req, res) {
     const tiempoMs = Date.now() - inicioConsulta;
     console.log(`[COMPRAS] Consulta completada: ${filas.length} registros en ${tiempoMs} ms`);
 
-    return res.json({
-      inicio,
-      fin,
-      total: filas.length,
-      compras: filas,
-    });
+    return res.json({ inicio, fin, total: filas.length, compras: filas });
   } catch (error) {
     const tiempoMs = Date.now() - inicioConsulta;
     console.error(`[COMPRAS] Error en ${etapa} después de ${tiempoMs} ms:`, error.message);
-    console.error('[COMPRAS] Pool:', {
-      total: pool.totalCount,
-      idle: pool.idleCount,
-      waiting: pool.waitingCount,
-    });
+    console.error('[COMPRAS] Pool:', { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount });
 
     const diagnostico = etapa === 'SELECT compras' && error.message === 'Query read timeout'
-      ? await pruebaLecturaCompras()
+      ? await diagnosticoCompras(req.query.inicio || null, req.query.fin || null)
       : null;
 
-    return res.status(500).json({
-      error: 'No se pudieron consultar las compras.',
-      detail: error.message,
-      etapa,
-      tiempoMs,
-      diagnostico,
-    });
+    return res.status(500).json({ error: 'No se pudieron consultar las compras.', detail: error.message, etapa, tiempoMs, diagnostico });
   }
 }
 
