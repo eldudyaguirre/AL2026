@@ -7,14 +7,34 @@ async function compras(req, res) {
   try {
     const inicio = req.query.inicio || '2026-08-31';
     const fin = req.query.fin || '2026-09-02';
-    console.log('[COMPRAS] ANTES DE QUERY', { inicio, fin });
 
+    // 1. Cargar el diccionario de proveedores una sola vez.
+    console.log('[COMPRAS] ANTES DE DICCIONARIO PROVEEDORES');
+    const proveedoresResult = await pool.query({
+      text: `
+        SELECT json_object_agg(
+          trim(ruccedpro),
+          COALESCE(nomprovee, '')
+        ) AS diccionario
+        FROM proveedores
+        WHERE ruccedpro IS NOT NULL
+      `,
+      statement_timeout: 10000,
+    });
+
+    const proveedores = proveedoresResult.rows[0]?.diccionario || {};
+    console.log('[COMPRAS] DICCIONARIO PROVEEDORES LISTO', {
+      registros: Object.keys(proveedores).length,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+
+    // 2. Consultar las compras sin JOIN.
+    console.log('[COMPRAS] ANTES DE QUERY COMPRAS', { inicio, fin });
     const result = await pool.query({
       text: `
         SELECT
           c.numfaccom AS "numero",
           c.ruccedpro AS "rucCed",
-          '' AS "proveedor",
           c.numautori AS "autorizacion",
           c.feccompra AS "fecha",
           COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
@@ -22,15 +42,22 @@ async function compras(req, res) {
           COALESCE(c.valivacom, 0)::text AS "iva",
           COALESCE(c.totcompra, 0)::text AS "total"
         FROM compras c
-        WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date
+        WHERE c.feccompra >= $1::date
+          AND c.feccompra <= $2::date
         ORDER BY c.feccompra DESC, c.numfaccom DESC
       `,
       values: [inicio, fin],
       statement_timeout: 10000,
     });
 
+    // 3. Completar cada compra usando el diccionario en memoria.
+    const comprasConProveedor = result.rows.map((compra) => ({
+      ...compra,
+      proveedor: proveedores[String(compra.rucCed || '').trim()] || '',
+    }));
+
     console.log('[COMPRAS] QUERY TERMINADA', {
-      filas: result.rows.length,
+      filas: comprasConProveedor.length,
       tiempoMs: Date.now() - inicioConsulta,
     });
 
@@ -38,8 +65,8 @@ async function compras(req, res) {
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
-      total: result.rows.length,
-      compras: result.rows,
+      total: comprasConProveedor.length,
+      compras: comprasConProveedor,
     });
   } catch (error) {
     console.error('[COMPRAS] ERROR', {
