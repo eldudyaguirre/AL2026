@@ -52,17 +52,17 @@ async function comprasTest(req, res) {
   const inicioConsulta = Date.now();
   const inicio = req.query.inicio || '2026-08-31';
   const fin = req.query.fin || '2026-08-31';
-  console.log('[COMPRAS-TEST] INICIO LENGTH', { inicio, fin });
+  console.log('[COMPRAS-TEST] INICIO LEFT', { inicio, fin });
   try {
     const result = await pool.query({
-      text: `SELECT c.numfaccom, p.ruccedpro, LENGTH(p.nomprovee) FROM compras c LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date`,
+      text: `SELECT c.numfaccom, p.ruccedpro, LEFT(p.nomprovee, 10) FROM compras c LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date`,
       values: [inicio, fin],
       rowMode: 'array',
     });
-    console.log('[COMPRAS-TEST] QUERY LENGTH TERMINADA', { filas: result.rows.length, tiempoMs: Date.now() - inicioConsulta });
+    console.log('[COMPRAS-TEST] QUERY LEFT TERMINADA', { filas: result.rows.length, tiempoMs: Date.now() - inicioConsulta });
     return res.json({ inicio, fin, tiempoMs: Date.now() - inicioConsulta, total: result.rows.length, filas: result.rows });
   } catch (error) {
-    console.error('[COMPRAS-TEST] ERROR LENGTH', { mensaje: error.message, codigo: error.code, tiempoMs: Date.now() - inicioConsulta });
+    console.error('[COMPRAS-TEST] ERROR LEFT', { mensaje: error.message, codigo: error.code, tiempoMs: Date.now() - inicioConsulta });
     return res.status(500).json({ error: error.message, tiempoMs: Date.now() - inicioConsulta });
   }
 }
