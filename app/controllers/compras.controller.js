@@ -7,34 +7,13 @@ async function compras(req, res) {
   try {
     const inicio = req.query.inicio || '2026-08-31';
     const fin = req.query.fin || '2026-09-02';
-    console.log('[COMPRAS] ANTES DE CONSULTAS', { inicio, fin });
-
-    console.log('[COMPRAS] ANTES DE PROVEEDORES');
-    const proveedoresResult = await pool.query(`
-      SELECT ruccedpro
-      FROM proveedores
-    `);
-    console.log('[COMPRAS] PROVEEDORES TERMINADA', {
-      registros: proveedoresResult.rows.length,
-      tiempoMs: Date.now() - inicioConsulta,
-    });
-
-    const proveedores = new Map();
-    for (const proveedor of proveedoresResult.rows) {
-      if (proveedor.ruccedpro) {
-        proveedores.set(String(proveedor.ruccedpro).trim(), '');
-      }
-    }
-
-    console.log('[COMPRAS] DICCIONARIO PROVEEDORES', {
-      registros: proveedoresResult.rows.length,
-      tiempoMs: Date.now() - inicioConsulta,
-    });
+    console.log('[COMPRAS] ANTES DE QUERY', { inicio, fin });
 
     const result = await pool.query(`
       SELECT
         c.numfaccom AS "numero",
         c.ruccedpro AS "rucCed",
+        '' AS "proveedor",
         c.numautori AS "autorizacion",
         c.feccompra AS "fecha",
         COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
@@ -49,6 +28,7 @@ async function compras(req, res) {
       SELECT
         c.numfaccom AS "numero",
         c.ruccedpro AS "rucCed",
+        '' AS "proveedor",
         c.numautori AS "autorizacion",
         c.feccompra AS "fecha",
         COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
@@ -61,13 +41,8 @@ async function compras(req, res) {
       ORDER BY "fecha" DESC, "numero" DESC
     `, [inicio, fin]);
 
-    const comprasConProveedor = result.rows.map((compra) => ({
-      ...compra,
-      proveedor: proveedores.get(String(compra.rucCed || '').trim()) || '',
-    }));
-
     console.log('[COMPRAS] QUERY TERMINADA', {
-      filas: comprasConProveedor.length,
+      filas: result.rows.length,
       tiempoMs: Date.now() - inicioConsulta,
     });
 
@@ -75,8 +50,8 @@ async function compras(req, res) {
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
-      total: comprasConProveedor.length,
-      compras: comprasConProveedor,
+      total: result.rows.length,
+      compras: result.rows,
     });
   } catch (error) {
     console.error('[COMPRAS] ERROR', {
