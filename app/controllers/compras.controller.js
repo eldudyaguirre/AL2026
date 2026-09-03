@@ -81,4 +81,48 @@ async function compras(req, res) {
   }
 }
 
-module.exports = { compras };
+async function comprasTest(req, res) {
+  const inicioConsulta = Date.now();
+  const inicio = req.query.inicio || '2026-08-31';
+  const fin = req.query.fin || '2026-08-31';
+
+  console.log('[COMPRAS-TEST] INICIO', { inicio, fin });
+
+  try {
+    const result = await pool.query({
+      text: `
+        SELECT numfaccom
+        FROM compras
+        WHERE feccompra >= $1::date
+          AND feccompra <= $2::date
+      `,
+      values: [inicio, fin],
+      rowMode: 'array',
+    });
+
+    console.log('[COMPRAS-TEST] QUERY TERMINADA', {
+      filas: result.rows.length,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+
+    return res.json({
+      inicio,
+      fin,
+      tiempoMs: Date.now() - inicioConsulta,
+      total: result.rows.length,
+      filas: result.rows,
+    });
+  } catch (error) {
+    console.error('[COMPRAS-TEST] ERROR', {
+      mensaje: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+    return res.status(500).json({
+      error: error.message,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+  }
+}
+
+module.exports = { compras, comprasTest };
