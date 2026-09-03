@@ -86,21 +86,26 @@ async function comprasTest(req, res) {
   const inicio = req.query.inicio || '2026-08-31';
   const fin = req.query.fin || '2026-08-31';
 
-  console.log('[COMPRAS-TEST] INICIO', { inicio, fin });
+  console.log('[COMPRAS-TEST] INICIO JOIN', { inicio, fin });
 
   try {
     const result = await pool.query({
       text: `
-        SELECT numfaccom
-        FROM compras
-        WHERE feccompra >= $1::date
-          AND feccompra <= $2::date
+        SELECT
+          c.numfaccom,
+          p.ruccedpro,
+          p.nomprovee
+        FROM compras c
+        LEFT JOIN proveedores p
+          ON p.ruccedpro = c.ruccedpro
+        WHERE c.feccompra >= $1::date
+          AND c.feccompra <= $2::date
       `,
       values: [inicio, fin],
       rowMode: 'array',
     });
 
-    console.log('[COMPRAS-TEST] QUERY TERMINADA', {
+    console.log('[COMPRAS-TEST] QUERY JOIN TERMINADA', {
       filas: result.rows.length,
       tiempoMs: Date.now() - inicioConsulta,
     });
@@ -113,7 +118,7 @@ async function comprasTest(req, res) {
       filas: result.rows,
     });
   } catch (error) {
-    console.error('[COMPRAS-TEST] ERROR', {
+    console.error('[COMPRAS-TEST] ERROR JOIN', {
       mensaje: error.message,
       codigo: error.code,
       tiempoMs: Date.now() - inicioConsulta,
