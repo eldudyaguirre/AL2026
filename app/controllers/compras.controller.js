@@ -1,15 +1,24 @@
 const pool = require('../database/postgres');
 
-async function compras(req, res) {
-  const inicioConsulta = Date.now();
-  console.log('[COMPRAS] INICIO', new Date().toISOString());
+let proveedoresCache = null;
+let proveedoresCarga = null;
 
-  try {
-    const inicio = req.query.inicio || '2026-08-31';
-    const fin = req.query.fin || '2026-09-02';
+async function obtenerProveedores() {
+  if (proveedoresCache) {
+    console.log('[COMPRAS] DICCIONARIO PROVEEDORES EN CACHE', {
+      registros: Object.keys(proveedoresCache).length,
+    });
+    return proveedoresCache;
+  }
 
-    // 1. Cargar el diccionario de proveedores una sola vez.
-    console.log('[COMPRAS] ANTES DE DICCIONARIO PROVEEDORES');
+  if (proveedoresCarga) {
+    console.log('[COMPRAS] ESPERANDO CARGA DE PROVEEDORES EN CURSO');
+    return proveedoresCarga;
+  }
+
+  proveedoresCarga = (async () => {
+    console.log('[COMPRAS] CARGANDO DICCIONARIO PROVEEDORES');
+
     const proveedoresResult = await pool.query({
       text: `
         SELECT json_object_agg(
@@ -22,11 +31,32 @@ async function compras(req, res) {
       statement_timeout: 10000,
     });
 
-    const proveedores = proveedoresResult.rows[0]?.diccionario || {};
+    proveedoresCache = proveedoresResult.rows[0]?.diccionario || {};
+
     console.log('[COMPRAS] DICCIONARIO PROVEEDORES LISTO', {
-      registros: Object.keys(proveedores).length,
-      tiempoMs: Date.now() - inicioConsulta,
+      registros: Object.keys(proveedoresCache).length,
     });
+
+    return proveedoresCache;
+  })();
+
+  try {
+    return await proveedoresCarga;
+  } finally {
+    proveedoresCarga = null;
+  }
+}
+
+async function compras(req, res) {
+  const inicioConsulta = Date.now();
+  console.log('[COMPRAS] INICIO', new Date().toISOString());
+
+  try {
+    const inicio = req.query.inicio || '2026-08-31';
+    const fin = req.query.fin || '2026-09-02';
+
+    // 1. Obtener el diccionario de proveedores. Se carga una sola vez por proceso.
+    const proveedores = await obtenerProveedores();
 
     // 2. Consultar las compras sin JOIN.
     console.log('[COMPRAS] ANTES DE QUERY COMPRAS', { inicio, fin });
