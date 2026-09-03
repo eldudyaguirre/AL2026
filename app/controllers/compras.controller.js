@@ -76,27 +76,40 @@ async function compras(req, res) {
 
 async function proveedoresTest(req, res) {
   const inicioConsulta = Date.now();
-  console.log('[PROVEEDORES-TEST] INICIO NOMPROVEE');
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+  console.log('[PROVEEDORES-TEST] INICIO', { limit, offset });
 
   try {
-    const result = await pool.query(`
-      SELECT nomprovee AS "proveedor"
-      FROM proveedores
-      ORDER BY nomprovee
-    `);
+    const result = await pool.query({
+      text: `
+        SELECT
+          ruccedpro AS "rucCed",
+          nomprovee AS "proveedor"
+        FROM proveedores
+        ORDER BY ruccedpro
+        LIMIT $1 OFFSET $2
+      `,
+      values: [limit, offset],
+    });
 
-    console.log('[PROVEEDORES-TEST] NOMPROVEE TERMINADO', {
+    console.log('[PROVEEDORES-TEST] TERMINADO', {
       filas: result.rows.length,
+      limit,
+      offset,
       tiempoMs: Date.now() - inicioConsulta,
     });
 
     return res.json({
       tiempoMs: Date.now() - inicioConsulta,
+      limit,
+      offset,
       total: result.rows.length,
       proveedores: result.rows,
     });
   } catch (error) {
-    console.error('[PROVEEDORES-TEST] ERROR NOMPROVEE', {
+    console.error('[PROVEEDORES-TEST] ERROR', {
       mensaje: error.message,
       codigo: error.code,
       tiempoMs: Date.now() - inicioConsulta,
