@@ -11,7 +11,7 @@ async function compras(req, res) {
 
     console.log('[COMPRAS] ANTES DE PROVEEDORES');
     const proveedoresResult = await pool.query(`
-      SELECT ruccedpro, nomprovee
+      SELECT ruccedpro, encode(convert_to(COALESCE(nomprovee, ''), 'UTF8'), 'hex') AS nomprovee_hex
       FROM proveedores
     `);
     console.log('[COMPRAS] PROVEEDORES TERMINADA', {
@@ -22,7 +22,10 @@ async function compras(req, res) {
     const proveedores = new Map();
     for (const proveedor of proveedoresResult.rows) {
       if (proveedor.ruccedpro) {
-        proveedores.set(String(proveedor.ruccedpro).trim(), proveedor.nomprovee || '');
+        const nombre = proveedor.nomprovee_hex
+          ? Buffer.from(proveedor.nomprovee_hex, 'hex').toString('utf8')
+          : '';
+        proveedores.set(String(proveedor.ruccedpro).trim(), nombre);
       }
     }
 
