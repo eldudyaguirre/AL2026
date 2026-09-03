@@ -76,7 +76,7 @@ async function compras(req, res) {
 
 async function proveedoresTest(req, res) {
   const inicioConsulta = Date.now();
-  console.log('[PROVEEDORES-TEST] INICIO');
+  console.log('[PROVEEDORES-TEST] INICIO COMPLETO');
 
   try {
     const result = await pool.query(`
@@ -85,7 +85,7 @@ async function proveedoresTest(req, res) {
         nomprovee AS "proveedor"
       FROM proveedores
       WHERE ruccedpro IS NOT NULL
-      LIMIT 10
+      ORDER BY ruccedpro
     `);
 
     console.log('[PROVEEDORES-TEST] TERMINADO', {
