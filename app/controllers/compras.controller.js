@@ -22,10 +22,9 @@ async function compras(req, res) {
           COALESCE(c.valivacom, 0)::text AS "iva",
           COALESCE(c.totcompra, 0)::text AS "total"
         FROM compras c
-        WHERE c.feccompra >= $1::date
-          AND c.feccompra <= $2::date
-        ORDER BY c.feccompra DESC
-        LIMIT 500
+        WHERE c.feccompra >= $1
+          AND c.feccompra <= $2
+        LIMIT 100
       `,
       values: [inicio, fin]
     });
