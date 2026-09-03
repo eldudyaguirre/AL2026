@@ -7,13 +7,32 @@ async function compras(req, res) {
   try {
     const inicio = req.query.inicio || '2026-08-31';
     const fin = req.query.fin || '2026-09-02';
-    console.log('[COMPRAS] ANTES DE QUERY', { inicio, fin });
+    console.log('[COMPRAS] ANTES DE CONSULTAS', { inicio, fin });
 
+    // Cargamos los proveedores una sola vez en memoria.
+    const proveedoresResult = await pool.query(`
+      SELECT ruccedpro, nomprovee
+      FROM proveedores
+    `);
+
+    const proveedores = new Map();
+    for (const proveedor of proveedoresResult.rows) {
+      if (proveedor.ruccedpro) {
+        proveedores.set(String(proveedor.ruccedpro).trim(), proveedor.nomprovee || '');
+      }
+    }
+
+    console.log('[COMPRAS] DICCIONARIO PROVEEDORES', {
+      registros: proveedoresResult.rows.length,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+
+    // Las compras se consultan sin JOIN. El nombre del proveedor se completa
+    // desde el diccionario cargado anteriormente.
     const result = await pool.query(`
       SELECT
         c.numfaccom AS "numero",
-        p.ruccedpro AS "rucCed",
-        p.nomprovee AS "proveedor",
+        c.ruccedpro AS "rucCed",
         c.numautori AS "autorizacion",
         c.feccompra AS "fecha",
         COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
@@ -21,13 +40,13 @@ async function compras(req, res) {
         COALESCE(c.valivacom, 0)::text AS "iva",
         COALESCE(c.totcompra, 0)::text AS "total"
       FROM compras c
-      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
       WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date
+
       UNION ALL
+
       SELECT
         c.numfaccom AS "numero",
-        p.ruccedpro AS "rucCed",
-        p.nomprovee AS "proveedor",
+        c.ruccedpro AS "rucCed",
         c.numautori AS "autorizacion",
         c.feccompra AS "fecha",
         COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
@@ -35,16 +54,39 @@ async function compras(req, res) {
         COALESCE(c.valivacom, 0)::text AS "iva",
         COALESCE(c.totcompra, 0)::text AS "total"
       FROM comprasnv c
-      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
       WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date
+
       ORDER BY "fecha" DESC, "numero" DESC
     `, [inicio, fin]);
 
-    console.log('[COMPRAS] QUERY TERMINADA', { filas: result.rows.length, tiempoMs: Date.now() - inicioConsulta });
-    return res.json({ inicio, fin, tiempoMs: Date.now() - inicioConsulta, total: result.rows.length, compras: result.rows });
+    const comprasConProveedor = result.rows.map((compra) => ({
+      ...compra,
+      proveedor: proveedores.get(String(compra.rucCed || '').trim()) || '',
+    }));
+
+    console.log('[COMPRAS] QUERY TERMINADA', {
+      filas: comprasConProveedor.length,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+
+    return res.json({
+      inicio,
+      fin,
+      tiempoMs: Date.now() - inicioConsulta,
+      total: comprasConProveedor.length,
+      compras: comprasConProveedor,
+    });
   } catch (error) {
-    console.error('[COMPRAS] ERROR', { mensaje: error.message, codigo: error.code, tiempoMs: Date.now() - inicioConsulta });
-    return res.status(500).json({ error: 'Error consultando compras.', detail: error.message, tiempoMs: Date.now() - inicioConsulta });
+    console.error('[COMPRAS] ERROR', {
+      mensaje: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+    return res.status(500).json({
+      error: 'Error consultando compras.',
+      detail: error.message,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
   }
 }
 
