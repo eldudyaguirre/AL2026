@@ -9,11 +9,15 @@ async function compras(req, res) {
     const fin = req.query.fin || '2026-09-02';
     console.log('[COMPRAS] ANTES DE CONSULTAS', { inicio, fin });
 
-    // Cargamos los proveedores una sola vez en memoria.
+    console.log('[COMPRAS] ANTES DE PROVEEDORES');
     const proveedoresResult = await pool.query(`
       SELECT ruccedpro, nomprovee
       FROM proveedores
     `);
+    console.log('[COMPRAS] PROVEEDORES TERMINADA', {
+      registros: proveedoresResult.rows.length,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
 
     const proveedores = new Map();
     for (const proveedor of proveedoresResult.rows) {
@@ -27,8 +31,6 @@ async function compras(req, res) {
       tiempoMs: Date.now() - inicioConsulta,
     });
 
-    // Las compras se consultan sin JOIN. El nombre del proveedor se completa
-    // desde el diccionario cargado anteriormente.
     const result = await pool.query(`
       SELECT
         c.numfaccom AS "numero",
