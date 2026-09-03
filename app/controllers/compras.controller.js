@@ -4,12 +4,16 @@ async function compras(req, res) {
   const inicioConsulta = Date.now();
   let client;
 
+  console.log('[COMPRAS] INICIO', new Date().toISOString());
+
   try {
     const inicio = req.query.inicio || '2026-08-31';
     const fin = req.query.fin || '2026-09-02';
 
     client = pool.createDedicatedClient();
     await client.connect();
+
+    console.log('[COMPRAS] ANTES DE QUERY', { inicio, fin });
 
     const result = await client.query(`
       SELECT
@@ -49,15 +53,31 @@ async function compras(req, res) {
       ORDER BY "fecha" DESC, "numero" DESC
     `, [inicio, fin]);
 
-    return res.json({
+    console.log('[COMPRAS] QUERY TERMINADA', {
+      filas: result.rows.length,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
+
+    const respuesta = {
       inicio,
       fin,
       tiempoMs: Date.now() - inicioConsulta,
       total: result.rows.length,
       compras: result.rows,
+    };
+
+    console.log('[COMPRAS] RESPUESTA PREPARADA', {
+      total: respuesta.total,
+      tiempoMs: respuesta.tiempoMs,
     });
+
+    return res.json(respuesta);
   } catch (error) {
-    console.error('[COMPRAS] Error consultando compras:', error);
+    console.error('[COMPRAS] ERROR', {
+      mensaje: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicioConsulta,
+    });
     return res.status(500).json({
       error: 'Error consultando compras.',
       detail: error.message,
@@ -67,6 +87,7 @@ async function compras(req, res) {
     if (client) {
       try {
         await client.end();
+        console.log('[COMPRAS] CLIENTE CERRADO');
       } catch (error) {
         console.error('[COMPRAS] Error cerrando cliente:', error.message);
       }
