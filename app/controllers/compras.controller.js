@@ -2,20 +2,15 @@ const pool = require('../database/postgres');
 
 async function compras(req, res) {
   const inicioConsulta = Date.now();
-  let client;
-
   console.log('[COMPRAS] INICIO', new Date().toISOString());
 
   try {
     const inicio = req.query.inicio || '2026-08-31';
     const fin = req.query.fin || '2026-09-02';
 
-    client = pool.createDedicatedClient();
-    await client.connect();
-
     console.log('[COMPRAS] ANTES DE QUERY', { inicio, fin });
 
-    const result = await client.query(`
+    const result = await pool.query(`
       SELECT
         c.numfaccom AS "numero",
         p.ruccedpro AS "rucCed",
@@ -68,7 +63,7 @@ async function compras(req, res) {
 
     console.log('[COMPRAS] RESPUESTA PREPARADA', {
       total: respuesta.total,
-      tiempoMs: respuesta.tiempoMs,
+      tiempoMs: Date.now() - inicioConsulta,
     });
 
     return res.json(respuesta);
@@ -83,15 +78,6 @@ async function compras(req, res) {
       detail: error.message,
       tiempoMs: Date.now() - inicioConsulta,
     });
-  } finally {
-    if (client) {
-      try {
-        await client.end();
-        console.log('[COMPRAS] CLIENTE CERRADO');
-      } catch (error) {
-        console.error('[COMPRAS] Error cerrando cliente:', error.message);
-      }
-    }
   }
 }
 
