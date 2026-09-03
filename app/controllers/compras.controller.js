@@ -79,23 +79,28 @@ async function proveedoresTest(req, res) {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
-  console.log('[PROVEEDORES-TEST] INICIO', { limit, offset });
+  console.log('[PROVEEDORES-TEST] INICIO JSON', { limit, offset });
 
   try {
     const result = await pool.query({
       text: `
-        SELECT
-          ruccedpro AS "rucCed",
-          nomprovee AS "proveedor"
-        FROM proveedores
-        ORDER BY ruccedpro
-        LIMIT $1 OFFSET $2
+        SELECT COALESCE(json_agg(t), '[]'::json) AS proveedores
+        FROM (
+          SELECT
+            ruccedpro AS "rucCed",
+            nomprovee AS "proveedor"
+          FROM proveedores
+          ORDER BY ruccedpro
+          LIMIT $1 OFFSET $2
+        ) t
       `,
       values: [limit, offset],
     });
 
-    console.log('[PROVEEDORES-TEST] TERMINADO', {
-      filas: result.rows.length,
+    const proveedores = result.rows[0].proveedores || [];
+
+    console.log('[PROVEEDORES-TEST] TERMINADO JSON', {
+      filas: proveedores.length,
       limit,
       offset,
       tiempoMs: Date.now() - inicioConsulta,
@@ -105,11 +110,11 @@ async function proveedoresTest(req, res) {
       tiempoMs: Date.now() - inicioConsulta,
       limit,
       offset,
-      total: result.rows.length,
-      proveedores: result.rows,
+      total: proveedores.length,
+      proveedores,
     });
   } catch (error) {
-    console.error('[PROVEEDORES-TEST] ERROR', {
+    console.error('[PROVEEDORES-TEST] ERROR JSON', {
       mensaje: error.message,
       codigo: error.code,
       tiempoMs: Date.now() - inicioConsulta,
