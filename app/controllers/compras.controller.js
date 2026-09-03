@@ -10,13 +10,11 @@ async function compras(req, res) {
 
     console.log('[COMPRAS] ANTES DE QUERY COMPRAS', { inicio, fin });
 
-    // Consulta directa con LEFT JOIN optimizado
     const result = await pool.query({
       text: `
         SELECT
           c.numfaccom AS "numero",
           c.ruccedpro AS "rucCed",
-          COALESCE(p.nomprovee, '') AS "proveedor",
           c.numautori AS "autorizacion",
           c.feccompra AS "fecha",
           COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
@@ -24,14 +22,12 @@ async function compras(req, res) {
           COALESCE(c.valivacom, 0)::text AS "iva",
           COALESCE(c.totcompra, 0)::text AS "total"
         FROM compras c
-        LEFT JOIN proveedores p 
-          ON trim(p.ruccedpro) = trim(c.ruccedpro)
-        WHERE c.feccompra::date >= $1::date
-          AND c.feccompra::date <= $2::date
-        ORDER BY c.feccompra DESC, c.numfaccom DESC
+        WHERE c.feccompra >= $1::date
+          AND c.feccompra <= $2::date
+        ORDER BY c.feccompra DESC
+        LIMIT 500
       `,
-      values: [inicio, fin],
-      statement_timeout: 10000,
+      values: [inicio, fin]
     });
 
     console.log('[COMPRAS] QUERY TERMINADA', {
