@@ -5,7 +5,6 @@ const { requireSession } = require('../auth/session');
 const router = express.Router();
 
 router.get('/compras', requireSession, controller.compras);
-router.get('/compras-test', requireSession, controller.comprasTest);
 router.get('/proveedores-test', requireSession, controller.proveedoresTest);
 
 module.exports = router;
