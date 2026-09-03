@@ -76,30 +76,23 @@ async function compras(req, res) {
 
 async function proveedoresTest(req, res) {
   const inicioConsulta = Date.now();
-  console.log('[PROVEEDORES-TEST] INICIO COMPLETO');
+  console.log('[PROVEEDORES-TEST] INICIO COUNT');
 
   try {
-    const result = await pool.query(`
-      SELECT
-        ruccedpro AS "rucCed",
-        nomprovee AS "proveedor"
-      FROM proveedores
-      WHERE ruccedpro IS NOT NULL
-      ORDER BY ruccedpro
-    `);
+    const result = await pool.query(`SELECT COUNT(*)::int AS total FROM proveedores`);
+    const total = result.rows[0]?.total || 0;
 
-    console.log('[PROVEEDORES-TEST] TERMINADO', {
-      filas: result.rows.length,
+    console.log('[PROVEEDORES-TEST] COUNT TERMINADO', {
+      total,
       tiempoMs: Date.now() - inicioConsulta,
     });
 
     return res.json({
       tiempoMs: Date.now() - inicioConsulta,
-      total: result.rows.length,
-      proveedores: result.rows,
+      total,
     });
   } catch (error) {
-    console.error('[PROVEEDORES-TEST] ERROR', {
+    console.error('[PROVEEDORES-TEST] ERROR COUNT', {
       mensaje: error.message,
       codigo: error.code,
       tiempoMs: Date.now() - inicioConsulta,
