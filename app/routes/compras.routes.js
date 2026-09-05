@@ -6,11 +6,13 @@ const comprasDosConsultasController = require('../controllers/compras-dos-consul
 const comprasPingController = require('../controllers/compras-ping-test');
 const comprasLotesController = require('../controllers/compras-lotes-test');
 const comprasSinOrderController = require('../controllers/compras-sin-order-test');
+const comprasSoloController = require('../controllers/compras-solo-test');
 const { requireSession } = require('../auth/session');
 
 const router = express.Router();
 
 router.get('/compras', requireSession, controller.compras);
+router.get('/compras-solo-test', requireSession, comprasSoloController.comprasSoloTest);
 router.get('/compras-diccionario-test', requireSession, comprasDiccionarioController.comprasDiccionarioTest);
 router.get('/compras-conexion-test', requireSession, comprasDiccionarioController.comprasConexionTest);
 router.get('/compras-json-test', requireSession, comprasJsonController.comprasJsonTest);
