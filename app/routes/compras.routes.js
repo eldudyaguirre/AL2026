@@ -16,6 +16,7 @@ router.get('/proveedores-nomprovee-cast-test', requireSession, controller.provee
 router.get('/proveedores-nomprovee-dedicado-test', requireSession, controller.proveedoresNomproveeDedicadoTest);
 router.get('/proveedores-join-dedicado-test', requireSession, controller.proveedoresJoinDedicadoTest);
 router.get('/proveedores-join-nom-length-dedicado-test', requireSession, controller.proveedoresJoinNomLengthDedicadoTest);
+router.get('/proveedores-join-concat-dedicado-test', requireSession, controller.proveedoresJoinConcatDedicadoTest);
 router.get('/pool-status-test', requireSession, controller.poolStatusTest);
 router.get('/pool-select-test', requireSession, controller.poolSelectTest);
 
