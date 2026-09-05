@@ -212,6 +212,7 @@ async function proveedoresRucTest(req, res) {
       error: error.message,
       codigo: error.code,
       tiempoMs: Date.now() - inicio,
+      proveedores: [],
     });
   }
 }
@@ -227,4 +228,35 @@ async function poolStatusTest(req, res) {
   });
 }
 
-module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, poolStatusTest };
+async function poolSelectTest(req, res) {
+  const inicio = Date.now();
+  const resultados = [];
+
+  try {
+    for (let i = 1; i <= 5; i += 1) {
+      const antes = Date.now();
+      const result = await pool.query('SELECT 1 AS ok');
+      resultados.push({
+        prueba: i,
+        ok: result.rows[0].ok,
+        tiempoMs: Date.now() - antes,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      resultados,
+      totalMs: Date.now() - inicio,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      codigo: error.code,
+      resultados,
+      totalMs: Date.now() - inicio,
+    });
+  }
+}
+
+module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, poolStatusTest, poolSelectTest };
