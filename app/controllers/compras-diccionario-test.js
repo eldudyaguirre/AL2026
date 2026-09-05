@@ -76,4 +76,55 @@ async function comprasDiccionarioTest(req, res) {
   }
 }
 
-module.exports = { comprasDiccionarioTest };
+async function comprasConexionTest(req, res) {
+  const inicioTotal = Date.now();
+  let client;
+  const resultados = [];
+
+  try {
+    console.log('[COMPRAS-CONEXION] INICIO');
+
+    client = pool.createDedicatedClient();
+    const inicioConnect = Date.now();
+    await client.connect();
+    const connectMs = Date.now() - inicioConnect;
+    console.log(`[COMPRAS-CONEXION] CONNECT OK en ${connectMs} ms`);
+
+    await client.query('SET statement_timeout = 15000');
+
+    for (let i = 1; i <= 5; i++) {
+      const inicio = Date.now();
+      console.log(`[COMPRAS-CONEXION] SELECT 1 #${i}...`);
+      const result = await client.query('SELECT 1 AS ok');
+      const tiempoMs = Date.now() - inicio;
+      resultados.push({ prueba: i, tiempoMs, valor: result.rows[0].ok });
+      console.log(`[COMPRAS-CONEXION] SELECT 1 #${i} OK en ${tiempoMs} ms`);
+    }
+
+    const tiempoMs = Date.now() - inicioTotal;
+    console.log(`[COMPRAS-CONEXION] FIN OK en ${tiempoMs} ms`);
+
+    return res.json({
+      ok: true,
+      connectMs,
+      resultados,
+      tiempoMs
+    });
+  } catch (error) {
+    const tiempoMs = Date.now() - inicioTotal;
+    console.error(`[COMPRAS-CONEXION] ERROR después de ${tiempoMs} ms:`, error.message, error.code || '');
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      codigo: error.code,
+      resultados,
+      tiempoMs
+    });
+  } finally {
+    if (client) {
+      try { await client.end(); } catch (_) {}
+    }
+  }
+}
+
+module.exports = { comprasDiccionarioTest, comprasConexionTest };
