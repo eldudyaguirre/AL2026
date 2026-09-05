@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get('/compras', requireSession, controller.compras);
 router.get('/compras-diccionario-test', requireSession, comprasDiccionarioController.comprasDiccionarioTest);
+router.get('/compras-conexion-test', requireSession, comprasDiccionarioController.comprasConexionTest);
 router.get('/proveedores-test', requireSession, controller.proveedoresTest);
 router.get('/conexion-test', requireSession, controller.conexionTest);
 router.get('/proveedores-ruc-test', requireSession, controller.proveedoresRucTest);
