@@ -128,4 +128,73 @@ async function proveedoresTest(req, res) {
   }
 }
 
-module.exports = { compras, proveedoresTest };
+async function conexionTest(req, res) {
+  const inicioTotal = Date.now();
+  let client;
+  let inicioConnect;
+  let finConnect;
+  let inicioQuery;
+  let finQuery;
+  let inicioEnd;
+  let finEnd;
+
+  console.log('[CONEXION-TEST] INICIO');
+
+  try {
+    client = pool.createDedicatedClient();
+
+    inicioConnect = Date.now();
+    console.log('[CONEXION-TEST] ANTES DE CONNECT');
+    await client.connect();
+    finConnect = Date.now();
+    console.log('[CONEXION-TEST] CONNECT TERMINADO', finConnect - inicioConnect, 'ms');
+
+    inicioQuery = Date.now();
+    console.log('[CONEXION-TEST] ANTES DE SELECT 1');
+    const result = await client.query('SELECT 1 AS ok');
+    finQuery = Date.now();
+    console.log('[CONEXION-TEST] SELECT 1 TERMINADO', finQuery - inicioQuery, 'ms');
+
+    inicioEnd = Date.now();
+    await client.end();
+    finEnd = Date.now();
+    client = null;
+    console.log('[CONEXION-TEST] END TERMINADO', finEnd - inicioEnd, 'ms');
+
+    return res.json({
+      ok: true,
+      resultado: result.rows[0],
+      connectMs: finConnect - inicioConnect,
+      queryMs: finQuery - inicioQuery,
+      endMs: finEnd - inicioEnd,
+      totalMs: Date.now() - inicioTotal,
+    });
+  } catch (error) {
+    console.error('[CONEXION-TEST] ERROR', {
+      mensaje: error.message,
+      codigo: error.code,
+      connectMs: inicioConnect && finConnect ? finConnect - inicioConnect : null,
+      queryMs: inicioQuery && finQuery ? finQuery - inicioQuery : null,
+      totalMs: Date.now() - inicioTotal,
+    });
+
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      codigo: error.code,
+      connectMs: inicioConnect && finConnect ? finConnect - inicioConnect : null,
+      queryMs: inicioQuery && finQuery ? finQuery - inicioQuery : null,
+      totalMs: Date.now() - inicioTotal,
+    });
+  } finally {
+    if (client) {
+      try {
+        await client.end();
+      } catch (error) {
+        console.error('[CONEXION-TEST] ERROR CERRANDO CLIENTE', error.message);
+      }
+    }
+  }
+}
+
+module.exports = { compras, proveedoresTest, conexionTest };
