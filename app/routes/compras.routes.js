@@ -2,6 +2,7 @@ const express = require('express');
 const controller = require('../controllers/compras.controller');
 const comprasDiccionarioController = require('../controllers/compras-diccionario-test');
 const comprasJsonController = require('../controllers/compras-json-test');
+const comprasDosConsultasController = require('../controllers/compras-dos-consultas-test');
 const { requireSession } = require('../auth/session');
 
 const router = express.Router();
@@ -10,6 +11,7 @@ router.get('/compras', requireSession, controller.compras);
 router.get('/compras-diccionario-test', requireSession, comprasDiccionarioController.comprasDiccionarioTest);
 router.get('/compras-conexion-test', requireSession, comprasDiccionarioController.comprasConexionTest);
 router.get('/compras-json-test', requireSession, comprasJsonController.comprasJsonTest);
+router.get('/compras-dos-consultas-test', requireSession, comprasDosConsultasController.comprasDosConsultasTest);
 router.get('/proveedores-test', requireSession, controller.proveedoresTest);
 router.get('/conexion-test', requireSession, controller.conexionTest);
 router.get('/proveedores-ruc-test', requireSession, controller.proveedoresRucTest);
