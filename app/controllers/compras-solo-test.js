@@ -10,13 +10,13 @@ async function comprasSoloTest(req, res) {
 
     const inicioQuery = Date.now();
 
-    // PRUEBA AISLADA: cuatro columnas de compras.
+    // PRUEBA AISLADA: columnas reales de compras.
     const result = await client.query(`
       SELECT
         numfaccom,
         ruccedpro,
         feccompra,
-        autcompra
+        numautori
       FROM compras
       LIMIT 10
     `);
