@@ -20,6 +20,7 @@ router.get('/proveedores-join-concat-dedicado-test', requireSession, controller.
 router.get('/proveedores-join-varchar-dedicado-test', requireSession, controller.proveedoresJoinVarcharDedicadoTest);
 router.get('/proveedores-join-array-dedicado-test', requireSession, controller.proveedoresJoinArrayDedicadoTest);
 router.get('/proveedores-join-bytes-dedicado-test', requireSession, controller.proveedoresJoinBytesDedicadoTest);
+router.get('/proveedores-ruc-lista-dedicado-test', requireSession, controller.proveedoresJoinArrayDedicadoTest2);
 router.get('/pool-status-test', requireSession, controller.poolStatusTest);
 router.get('/pool-select-test', requireSession, controller.poolSelectTest);
 
