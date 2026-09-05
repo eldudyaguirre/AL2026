@@ -429,6 +429,72 @@ async function proveedoresNomproveeCastTest(req, res) {
   }
 }
 
+async function proveedoresNomproveeDedicadoTest(req, res) {
+  const inicio = Date.now();
+  let client;
+
+  console.log('[PROVEEDORES-NOMPROVEE-DEDICADO-TEST] INICIO');
+
+  try {
+    client = pool.createDedicatedClient();
+
+    const antesConnect = Date.now();
+    await client.connect();
+    const connectMs = Date.now() - antesConnect;
+
+    const antesQuery = Date.now();
+    const result = await client.query(`
+      SELECT nomprovee
+      FROM proveedores
+      LIMIT 20
+    `);
+    const queryMs = Date.now() - antesQuery;
+
+    const antesEnd = Date.now();
+    await client.end();
+    client = null;
+    const endMs = Date.now() - antesEnd;
+
+    console.log('[PROVEEDORES-NOMPROVEE-DEDICADO-TEST] TERMINADO', {
+      filas: result.rows.length,
+      connectMs,
+      queryMs,
+      endMs,
+      tiempoMs: Date.now() - inicio,
+    });
+
+    return res.json({
+      ok: true,
+      total: result.rows.length,
+      connectMs,
+      queryMs,
+      endMs,
+      tiempoMs: Date.now() - inicio,
+      proveedores: result.rows,
+    });
+  } catch (error) {
+    if (client) {
+      try {
+        await client.end();
+      } catch (_) {}
+    }
+
+    console.error('[PROVEEDORES-NOMPROVEE-DEDICADO-TEST] ERROR', {
+      mensaje: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicio,
+    });
+
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicio,
+      proveedores: [],
+    });
+  }
+}
+
 async function poolStatusTest(req, res) {
   return res.json({
     ok: true,
@@ -471,4 +537,4 @@ async function poolSelectTest(req, res) {
   }
 }
 
-module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, proveedoresRucSinOrderTest, proveedoresRucCastTest, proveedoresRucFijoTest, proveedoresNomproveeTest, proveedoresNomproveeCastTest, poolStatusTest, poolSelectTest };
+module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, proveedoresRucSinOrderTest, proveedoresRucCastTest, proveedoresRucFijoTest, proveedoresNomproveeTest, proveedoresNomproveeCastTest, proveedoresNomproveeDedicadoTest, poolStatusTest, poolSelectTest };
