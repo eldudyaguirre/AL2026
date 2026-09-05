@@ -261,6 +261,51 @@ async function proveedoresRucSinOrderTest(req, res) {
   }
 }
 
+async function proveedoresRucCastTest(req, res) {
+  const inicio = Date.now();
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+
+  console.log('[PROVEEDORES-RUC-CAST-TEST] INICIO', { limit });
+
+  try {
+    const result = await pool.query({
+      text: `
+        SELECT ruccedpro
+        FROM proveedores
+        ORDER BY ruccedpro::text
+        LIMIT $1
+      `,
+      values: [limit],
+    });
+
+    console.log('[PROVEEDORES-RUC-CAST-TEST] TERMINADO', {
+      filas: result.rows.length,
+      tiempoMs: Date.now() - inicio,
+    });
+
+    return res.json({
+      ok: true,
+      total: result.rows.length,
+      tiempoMs: Date.now() - inicio,
+      proveedores: result.rows,
+    });
+  } catch (error) {
+    console.error('[PROVEEDORES-RUC-CAST-TEST] ERROR', {
+      mensaje: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicio,
+    });
+
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicio,
+      proveedores: [],
+    });
+  }
+}
+
 async function poolStatusTest(req, res) {
   return res.json({
     ok: true,
@@ -303,4 +348,4 @@ async function poolSelectTest(req, res) {
   }
 }
 
-module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, proveedoresRucSinOrderTest, poolStatusTest, poolSelectTest };
+module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, proveedoresRucSinOrderTest, proveedoresRucCastTest, poolStatusTest, poolSelectTest };
