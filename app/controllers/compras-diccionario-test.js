@@ -1,5 +1,14 @@
 const pool = require('../database/postgres');
 
+async function ejecutarQuery(client, nombre, sql, params) {
+  const inicio = Date.now();
+  console.log(`[COMPRAS-DICCIONARIO] ${nombre}`);
+  const result = await client.query(sql, params);
+  const tiempoMs = Date.now() - inicio;
+  console.log(`[COMPRAS-DICCIONARIO] ${nombre} OK en ${tiempoMs} ms (${result.rows.length} filas)`);
+  return { tiempoMs, filas: result.rows.length };
+}
+
 async function comprasDiccionarioTest(req, res) {
   const inicioTotal = Date.now();
   let client;
@@ -17,57 +26,39 @@ async function comprasDiccionarioTest(req, res) {
     await client.query('SET statement_timeout = 15000');
     console.log('[COMPRAS-DICCIONARIO] statement_timeout=15000');
 
-    const inicioCompras = Date.now();
-    console.log('[COMPRAS-DICCIONARIO] TEST 1: compras SOLA');
-    const comprasResult = await client.query(`
-      SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed", c.numautori AS "autorizacion", c.feccompra AS "fecha",
-        COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva", COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
-        COALESCE(c.valivacom, 0)::text AS "iva", COALESCE(c.totcompra, 0)::text AS "total"
-      FROM compras c
-      WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date
-      ORDER BY c.feccompra DESC, c.numfaccom DESC
-    `, [inicio, fin]);
-    const comprasMs = Date.now() - inicioCompras;
-    console.log(`[COMPRAS-DICCIONARIO] TEST 1 OK: ${comprasResult.rows.length} filas en ${comprasMs} ms`);
+    const parametros = [inicio, fin];
+    const base = `FROM compras c WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date`;
+    const columnas = `c.numfaccom AS "numero", c.ruccedpro AS "rucCed", c.numautori AS "autorizacion", c.feccompra AS "fecha", COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva", COALESCE(c.totconiva, 0)::text AS "subtotalConIva", COALESCE(c.valivacom, 0)::text AS "iva", COALESCE(c.totcompra, 0)::text AS "total"`;
 
-    const inicioComprasNv = Date.now();
-    console.log('[COMPRAS-DICCIONARIO] TEST 2: comprasnv SOLA');
-    const comprasNvResult = await client.query(`
-      SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed", c.numautori AS "autorizacion", c.feccompra AS "fecha",
-        COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva", COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
-        COALESCE(c.valivacom, 0)::text AS "iva", COALESCE(c.totcompra, 0)::text AS "total"
-      FROM comprasnv c
-      WHERE c.feccompra >= $1::date AND c.feccompra <= $2::date
-      ORDER BY c.feccompra DESC, c.numfaccom DESC
-    `, [inicio, fin]);
-    const comprasNvMs = Date.now() - inicioComprasNv;
-    console.log(`[COMPRAS-DICCIONARIO] TEST 2 OK: ${comprasNvResult.rows.length} filas en ${comprasNvMs} ms`);
+    const pruebas = {};
 
-    const rucs = [...new Set(
-      [...comprasResult.rows, ...comprasNvResult.rows]
-        .map(row => row.rucCed)
-        .filter(Boolean)
-    )];
-    console.log(`[COMPRAS-DICCIONARIO] TEST 3: ${rucs.length} RUC únicos`);
+    pruebas.count = await ejecutarQuery(client, 'TEST A: COUNT compras',
+      `SELECT COUNT(*)::int AS total ${base}`, parametros);
+
+    pruebas.columnasSinOrder = await ejecutarQuery(client, 'TEST B: 8 columnas SIN ORDER BY',
+      `SELECT ${columnas} ${base}`, parametros);
+
+    pruebas.columnasConOrder = await ejecutarQuery(client, 'TEST C: 8 columnas CON ORDER BY',
+      `SELECT ${columnas} ${base} ORDER BY c.feccompra DESC, c.numfaccom DESC`, parametros);
+
+    const tiempoMs = Date.now() - inicioTotal;
+    console.log(`[COMPRAS-DICCIONARIO] FIN OK en ${tiempoMs} ms`);
 
     return res.json({
       ok: true,
       inicio,
       fin,
-      compras: comprasResult.rows.length,
-      comprasnv: comprasNvResult.rows.length,
-      rucsUnicos: rucs.length,
-      comprasMs,
-      comprasNvMs,
-      tiempoMs: Date.now() - inicioTotal
+      pruebas,
+      tiempoMs
     });
   } catch (error) {
-    console.error(`[COMPRAS-DICCIONARIO] ERROR después de ${Date.now() - inicioTotal} ms:`, error.message, error.code || '');
+    const tiempoMs = Date.now() - inicioTotal;
+    console.error(`[COMPRAS-DICCIONARIO] ERROR después de ${tiempoMs} ms:`, error.message, error.code || '');
     return res.status(500).json({
       ok: false,
       error: error.message,
       codigo: error.code,
-      tiempoMs: Date.now() - inicioTotal
+      tiempoMs
     });
   } finally {
     if (client) {
@@ -83,7 +74,6 @@ async function comprasConexionTest(req, res) {
 
   try {
     console.log('[COMPRAS-CONEXION] INICIO');
-
     client = pool.createDedicatedClient();
     const inicioConnect = Date.now();
     await client.connect();
@@ -103,23 +93,11 @@ async function comprasConexionTest(req, res) {
 
     const tiempoMs = Date.now() - inicioTotal;
     console.log(`[COMPRAS-CONEXION] FIN OK en ${tiempoMs} ms`);
-
-    return res.json({
-      ok: true,
-      connectMs,
-      resultados,
-      tiempoMs
-    });
+    return res.json({ ok: true, connectMs, resultados, tiempoMs });
   } catch (error) {
     const tiempoMs = Date.now() - inicioTotal;
     console.error(`[COMPRAS-CONEXION] ERROR después de ${tiempoMs} ms:`, error.message, error.code || '');
-    return res.status(500).json({
-      ok: false,
-      error: error.message,
-      codigo: error.code,
-      resultados,
-      tiempoMs
-    });
+    return res.status(500).json({ ok: false, error: error.message, codigo: error.code, resultados, tiempoMs });
   } finally {
     if (client) {
       try { await client.end(); } catch (_) {}
