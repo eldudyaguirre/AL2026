@@ -512,7 +512,7 @@ async function proveedoresJoinDedicadoTest(req, res) {
     const result = await client.query(`
       SELECT
         c.numfaccom,
-        p.nomprovee
+        p.ruccedpro
       FROM compras c
       LEFT JOIN proveedores p
         ON p.ruccedpro = c.ruccedpro
