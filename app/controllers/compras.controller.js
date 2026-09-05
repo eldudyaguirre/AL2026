@@ -306,6 +306,47 @@ async function proveedoresRucCastTest(req, res) {
   }
 }
 
+async function proveedoresRucFijoTest(req, res) {
+  const inicio = Date.now();
+
+  console.log('[PROVEEDORES-RUC-FIJO-TEST] INICIO');
+
+  try {
+    const result = await pool.query(`
+      SELECT ruccedpro
+      FROM proveedores
+      ORDER BY ruccedpro
+      LIMIT 20
+    `);
+
+    console.log('[PROVEEDORES-RUC-FIJO-TEST] TERMINADO', {
+      filas: result.rows.length,
+      tiempoMs: Date.now() - inicio,
+    });
+
+    return res.json({
+      ok: true,
+      total: result.rows.length,
+      tiempoMs: Date.now() - inicio,
+      proveedores: result.rows,
+    });
+  } catch (error) {
+    console.error('[PROVEEDORES-RUC-FIJO-TEST] ERROR', {
+      mensaje: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicio,
+    });
+
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      codigo: error.code,
+      tiempoMs: Date.now() - inicio,
+      proveedores: [],
+    });
+  }
+}
+
 async function poolStatusTest(req, res) {
   return res.json({
     ok: true,
@@ -348,4 +389,4 @@ async function poolSelectTest(req, res) {
   }
 }
 
-module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, proveedoresRucSinOrderTest, proveedoresRucCastTest, poolStatusTest, poolSelectTest };
+module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, proveedoresRucSinOrderTest, proveedoresRucCastTest, proveedoresRucFijoTest, poolStatusTest, poolSelectTest };
