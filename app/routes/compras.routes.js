@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.get('/compras', requireSession, controller.compras);
 router.get('/proveedores-test', requireSession, controller.proveedoresTest);
+router.get('/conexion-test', requireSession, controller.conexionTest);
 
 module.exports = router;
