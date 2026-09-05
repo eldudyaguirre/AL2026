@@ -4,7 +4,8 @@
   "description": "API de prueba para conectar Railway con PostgreSQL mediante Tailscale y Railtail.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "sync": "node sync-worker/index.js"
   },
   "engines": {
     "node": ">=20"
