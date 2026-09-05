@@ -5,6 +5,7 @@ const comprasJsonController = require('../controllers/compras-json-test');
 const comprasDosConsultasController = require('../controllers/compras-dos-consultas-test');
 const comprasPingController = require('../controllers/compras-ping-test');
 const comprasLotesController = require('../controllers/compras-lotes-test');
+const comprasSinOrderController = require('../controllers/compras-sin-order-test');
 const { requireSession } = require('../auth/session');
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.get('/compras-json-test', requireSession, comprasJsonController.comprasJs
 router.get('/compras-dos-consultas-test', requireSession, comprasDosConsultasController.comprasDosConsultasTest);
 router.get('/compras-ping-test', requireSession, comprasPingController.comprasPingTest);
 router.get('/compras-lotes-test', requireSession, comprasLotesController.comprasLotesTest);
+router.get('/compras-sin-order-test', requireSession, comprasSinOrderController.comprasSinOrderTest);
 router.get('/proveedores-test', requireSession, controller.proveedoresTest);
 router.get('/conexion-test', requireSession, controller.conexionTest);
 router.get('/proveedores-ruc-test', requireSession, controller.proveedoresRucTest);
