@@ -216,4 +216,15 @@ async function proveedoresRucTest(req, res) {
   }
 }
 
-module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest };
+async function poolStatusTest(req, res) {
+  return res.json({
+    ok: true,
+    pool: {
+      totalCount: pool.totalCount,
+      idleCount: pool.idleCount,
+      waitingCount: pool.waitingCount,
+    },
+  });
+}
+
+module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest, poolStatusTest };
