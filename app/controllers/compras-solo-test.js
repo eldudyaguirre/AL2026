@@ -10,10 +10,9 @@ async function comprasSoloTest(req, res) {
 
     const inicioQuery = Date.now();
 
-    // PRUEBA AISLADA: solamente la tabla compras.
-    // Sin JOIN, sin proveedores, sin comprasnv y sin filtro de fechas.
+    // PRUEBA AISLADA: una sola columna sencilla de compras.
     const result = await client.query(`
-      SELECT *
+      SELECT numfaccom
       FROM compras
       LIMIT 10
     `);
@@ -22,7 +21,7 @@ async function comprasSoloTest(req, res) {
 
     return res.json({
       ok: true,
-      prueba: 'solo_tabla_compras_10_primeras',
+      prueba: 'solo_compras_numfaccom',
       total: result.rows.length,
       queryMs,
       tiempoMs: Date.now() - inicioTotal,
@@ -31,7 +30,7 @@ async function comprasSoloTest(req, res) {
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      prueba: 'solo_tabla_compras_10_primeras',
+      prueba: 'solo_compras_numfaccom',
       error: error.message,
       codigo: error.code,
       tiempoMs: Date.now() - inicioTotal
