@@ -129,72 +129,91 @@ async function proveedoresTest(req, res) {
 }
 
 async function conexionTest(req, res) {
-  const inicioTotal = Date.now();
+  const inicio = Date.now();
   let client;
-  let inicioConnect;
-  let finConnect;
-  let inicioQuery;
-  let finQuery;
-  let inicioEnd;
-  let finEnd;
-
-  console.log('[CONEXION-TEST] INICIO');
 
   try {
     client = pool.createDedicatedClient();
 
-    inicioConnect = Date.now();
-    console.log('[CONEXION-TEST] ANTES DE CONNECT');
+    const antesConnect = Date.now();
     await client.connect();
-    finConnect = Date.now();
-    console.log('[CONEXION-TEST] CONNECT TERMINADO', finConnect - inicioConnect, 'ms');
+    const connectMs = Date.now() - antesConnect;
 
-    inicioQuery = Date.now();
-    console.log('[CONEXION-TEST] ANTES DE SELECT 1');
+    const antesQuery = Date.now();
     const result = await client.query('SELECT 1 AS ok');
-    finQuery = Date.now();
-    console.log('[CONEXION-TEST] SELECT 1 TERMINADO', finQuery - inicioQuery, 'ms');
+    const queryMs = Date.now() - antesQuery;
 
-    inicioEnd = Date.now();
+    const antesEnd = Date.now();
     await client.end();
-    finEnd = Date.now();
     client = null;
-    console.log('[CONEXION-TEST] END TERMINADO', finEnd - inicioEnd, 'ms');
+    const endMs = Date.now() - antesEnd;
 
     return res.json({
       ok: true,
       resultado: result.rows[0],
-      connectMs: finConnect - inicioConnect,
-      queryMs: finQuery - inicioQuery,
-      endMs: finEnd - inicioEnd,
-      totalMs: Date.now() - inicioTotal,
+      connectMs,
+      queryMs,
+      endMs,
+      totalMs: Date.now() - inicio,
     });
   } catch (error) {
-    console.error('[CONEXION-TEST] ERROR', {
+    if (client) {
+      try {
+        await client.end();
+      } catch (_) {}
+    }
+
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      codigo: error.code,
+      totalMs: Date.now() - inicio,
+    });
+  }
+}
+
+async function proveedoresRucTest(req, res) {
+  const inicio = Date.now();
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+
+  console.log('[PROVEEDORES-RUC-TEST] INICIO', { limit });
+
+  try {
+    const result = await pool.query({
+      text: `
+        SELECT ruccedpro
+        FROM proveedores
+        ORDER BY ruccedpro
+        LIMIT $1
+      `,
+      values: [limit],
+    });
+
+    console.log('[PROVEEDORES-RUC-TEST] TERMINADO', {
+      filas: result.rows.length,
+      tiempoMs: Date.now() - inicio,
+    });
+
+    return res.json({
+      ok: true,
+      total: result.rows.length,
+      tiempoMs: Date.now() - inicio,
+      proveedores: result.rows,
+    });
+  } catch (error) {
+    console.error('[PROVEEDORES-RUC-TEST] ERROR', {
       mensaje: error.message,
       codigo: error.code,
-      connectMs: inicioConnect && finConnect ? finConnect - inicioConnect : null,
-      queryMs: inicioQuery && finQuery ? finQuery - inicioQuery : null,
-      totalMs: Date.now() - inicioTotal,
+      tiempoMs: Date.now() - inicio,
     });
 
     return res.status(500).json({
       ok: false,
       error: error.message,
       codigo: error.code,
-      connectMs: inicioConnect && finConnect ? finConnect - inicioConnect : null,
-      queryMs: inicioQuery && finQuery ? finQuery - inicioQuery : null,
-      totalMs: Date.now() - inicioTotal,
+      tiempoMs: Date.now() - inicio,
     });
-  } finally {
-    if (client) {
-      try {
-        await client.end();
-      } catch (error) {
-        console.error('[CONEXION-TEST] ERROR CERRANDO CLIENTE', error.message);
-      }
-    }
   }
 }
 
-module.exports = { compras, proveedoresTest, conexionTest };
+module.exports = { compras, proveedoresTest, conexionTest, proveedoresRucTest };
