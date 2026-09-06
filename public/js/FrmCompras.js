@@ -29,7 +29,7 @@ function exportarPDF(){
   doc.text('ROMERO APOLO LUIS HILDER',148.5,30,{align:'center'});
   doc.text('RUC.0701005514001',148.5,36,{align:'center'});
   const body=comprasActuales.map((r,i)=>[
-    String(i+1),texto(r.proveedor),texto(r.rucCed||r.rucced||r.rucProveedor),'FAC',formatoFecha(r.fecha),texto(r.numero),texto(r.autorizacion),money(r.subtotalSinIva),money(r.subtotalConIva),money(r.iva),money(r.total)
+    String(i+1),texto(r.proveedor),texto(r.rucCed||r.rucced||r.rucProveedor),texto(r.tipoDoc||'FAC'),formatoFecha(r.fecha),texto(r.numero),texto(r.autorizacion),money(r.subtotalSinIva),money(r.subtotalConIva),money(r.iva),money(r.total)
   ]);
   doc.autoTable({
     startY:41,
