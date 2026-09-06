@@ -1,9 +1,8 @@
 const { Pool } = require('pg');
 
-const TABLES = (process.env.SYNC_TABLES || 'compras,comprasnv,proveedores')
-  .split(',')
-  .map((value) => value.trim())
-  .filter(Boolean);
+const TABLES_CONFIG = process.env.SYNC_TABLES
+  ? process.env.SYNC_TABLES.split(',').map((value) => value.trim()).filter(Boolean)
+  : null;
 
 const INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 5000);
 const BATCH_SIZE = Number(process.env.SYNC_BATCH_SIZE || 200);
@@ -35,6 +34,19 @@ function quoteIdentifier(value) {
   return `"${value}"`;
 }
 
+async function getTables(client) {
+  if (TABLES_CONFIG) return TABLES_CONFIG;
+
+  const result = await client.query(`
+    SELECT tablename
+    FROM pg_catalog.pg_tables
+    WHERE schemaname = 'public'
+    ORDER BY tablename
+  `);
+
+  return result.rows.map((row) => row.tablename);
+}
+
 async function getTableSchema(client, table) {
   const columnsResult = await client.query(`
     SELECT
@@ -45,7 +57,7 @@ async function getTableSchema(client, table) {
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
       AND c.relname = $1
-      AND c.relkind = 'r'
+      AND c.relkind IN ('r', 'p')
       AND a.attnum > 0
       AND NOT a.attisdropped
     ORDER BY a.attnum
@@ -93,7 +105,7 @@ async function ensureTargetTable(client, table, schema) {
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
       AND c.relname = $1
-      AND c.relkind = 'r'
+      AND c.relkind IN ('r', 'p')
       AND a.attnum > 0
       AND NOT a.attisdropped
     ORDER BY a.attnum
@@ -157,12 +169,12 @@ async function syncOnce() {
   const railway = await railwayPool.connect();
 
   try {
-    // Tomamos una fotografía consistente de las tablas locales.
     await local.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
 
+    const tables = await getTables(local);
     const snapshots = [];
 
-    for (const table of TABLES) {
+    for (const table of tables) {
       const schema = await getTableSchema(local, table);
       const result = await local.query(`SELECT * FROM ${quoteIdentifier(table)}`);
       snapshots.push({ table, schema, rows: result.rows });
@@ -170,8 +182,6 @@ async function syncOnce() {
 
     await local.query('COMMIT');
 
-    // Aplicamos todas las tablas en una sola transacción en Railway.
-    // La API verá el estado anterior o el nuevo, no una mezcla parcial.
     await railway.query('BEGIN');
 
     for (const snapshot of snapshots) {
@@ -223,7 +233,7 @@ async function tick() {
   }
 }
 
-console.log(`[SYNC] Tablas: ${TABLES.join(', ')}`);
+console.log(`[SYNC] Tablas: ${TABLES_CONFIG ? TABLES_CONFIG.join(', ') : 'TODAS las tablas de public'}`);
 console.log(`[SYNC] Intervalo: ${INTERVAL_MS} ms`);
 console.log(`[SYNC] Lote: ${BATCH_SIZE} filas`);
 
