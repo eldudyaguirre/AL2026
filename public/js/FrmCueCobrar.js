@@ -15,7 +15,8 @@ function pintarReporte(d){
   const cuerpo=document.getElementById('reporte-body');
   let html='';
   (d.clientes||[]).forEach(p=>{
-    html+=`<tr class="cliente"><td colspan="5">Cliente: ${escapar(p.rucCedCli)}</td></tr>`;
+    const nombreCliente=texto(p.nomClient||p.rucCedCli);
+    html+=`<tr class="cliente"><td colspan="5">Cliente: ${escapar(nombreCliente)}</td></tr>`;
     (p.detalles||[]).forEach(r=>{
       html+=`<tr class="detalle"><td>${fecha(r.fecInicio)}</td><td>${fecha(r.fecVencim)}</td><td>${escapar(r.numFactur)}</td><td>${escapar(r.refCueCob)}</td><td class="valor">${dinero(r.valPagPar)}</td></tr>`;
     });
@@ -43,7 +44,7 @@ async function cargarCueCobrar(){
 function filasPDF(){
   const filas=[];
   (reporteActual?.clientes||[]).forEach(p=>{
-    filas.push([{content:`Cliente: ${p.rucCedCli||''}`,colSpan:5,styles:{fontStyle:'bold',halign:'left',fillColor:[245,245,245]}}]);
+    filas.push([{content:`Cliente: ${p.nomClient||p.rucCedCli||''}`,colSpan:5,styles:{fontStyle:'bold',halign:'left',fillColor:[245,245,245]}}]);
     (p.detalles||[]).forEach(r=>filas.push([fecha(r.fecInicio),fecha(r.fecVencim),texto(r.numFactur),texto(r.refCueCob),dinero(r.valPagPar)]));
     filas.push([{content:'S A L D O  T O T A L:',colSpan:4,styles:{fontStyle:'bold',halign:'right'}},{content:dinero(p.saldoTotal),styles:{fontStyle:'bold',halign:'right'}}]);
   });
