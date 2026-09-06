@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="/img/logonuevov2.svg?v=20260901">
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
-<link rel="stylesheet" href="/css/FrmCueCobrar.css">
+<link rel="stylesheet" href="/css/FrmCueCobrar.css?v=20260906">
 <title>Administrativo - Cuentas por Cobrar</title>
 </head>
 <body>
@@ -23,9 +23,9 @@
 </ul></nav><div class="sidebar-bottom"><button class="logout-link" onclick="cerrarSesion()"><i class="fi fi-rr-sign-out-alt icon"></i><span>Cerrar sesión</span></button></div>
 </aside><div class="overlay" id="overlay" onclick="cerrarMenu()"></div>
 <section class="content"><header class="topbar"><button class="mobile-menu" onclick="abrirMenu()"><i class="fi fi-rr-menu-burger"></i></button><div class="topbar-title">Administrativo <span>Cuentas por Cobrar</span></div></header>
-<main class="page"><div class="acciones"><button class="btn btn-print" onclick="imprimir()"><i class="fi fi-rr-print"></i> Imprimir</button><button class="btn btn-pdf" onclick="exportarPDF()"><i class="fi fi-rr-file-pdf"></i> Exportar PDF</button></div>
-<section class="paper"><header class="paper-header"><div class="empresa">Complete Accounting System</div><h1>Reporte de Cuentas por Cobrar</h1></header>
+<main class="page"><div class="acciones"><button class="btn btn-print" onclick="imprimir()"><i class="fi fi-rr-print"></i> Imprimir</button><button class="btn btn-pdf" onclick="exportarPDF()"><i class="fi fi-rr-file-pdf"></i> Exportar PDF</button><div class="filtro-edad"><label for="filtro-edad">Filtrar:</label><select id="filtro-edad" onchange="aplicarFiltroEdad()"><option value="TODOS">TODOS</option><option value="1-30">1 a 30 días</option><option value="30-45">+30 días</option><option value="45-60">+45 días</option><option value="60+">+60 días</option></select></div></div>
+<section class="paper"><header class="paper-header"><div class="empresa">Complete Accounting System</div><h1>Reporte de Cuentas por Cobrar</h1><div class="filtro-actual" id="filtro-actual">TODOS</div></header>
 <table class="reporte-table"><thead><tr><th>Fecha Emisión</th><th>Fecha Vencim.</th><th>Factura</th><th>Referencia</th><th>Valor</th></tr></thead><tbody id="reporte-body"><tr><td colspan="5" class="loading">Consultando cuentas por cobrar...</td></tr></tbody></table><div class="total-general">TOTAL GENERAL: <span id="total-general">0.00</span></div></section>
 </main></section></div>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script><script src="/js/FrmCueCobrar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script><script src="/js/FrmCueCobrar.js?v=20260906"></script>
 </body></html>
