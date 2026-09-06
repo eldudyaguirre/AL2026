@@ -10,18 +10,16 @@ async function cuePagar(req, res) {
 
     const sql = `
       SELECT
-        p.ruccedpro AS "rucCedPro",
-        p.nomprovee AS "nomProvee",
-        cp."FecInicio" AS "fecInicio",
-        cp."FecVencim" AS "fecVencim",
-        cp."RefCuePag" AS "refCuePag",
-        COALESCE(cp."ValPagPar", 0)::text AS "valPagPar"
-      FROM proveedores p
-      LEFT JOIN "CuentaPagar" cp
-        ON cp."RucCedPro" = p.ruccedpro
-       AND cp."EstPagCue" = 'PENDIENTE'
-      WHERE p.salcuenta > 0
-      ORDER BY p.nomprovee, cp."FecInicio", cp."RefCuePag"
+        cp.ruccedpro AS "rucCedPro",
+        COALESCE(p.nomprovee, cp.ruccedpro::text, '') AS "nomProvee",
+        cp.fecinicio AS "fecInicio",
+        cp.fecvencim AS "fecVencim",
+        cp.refcuepag AS "refCuePag",
+        COALESCE(cp.valpagpar, 0)::text AS "valPagPar"
+      FROM "cuenta pagar" cp
+      LEFT JOIN proveedores p ON p.ruccedpro = cp.ruccedpro
+      WHERE UPPER(TRIM(cp.estpagcue)) = 'PENDIENTE'
+      ORDER BY COALESCE(p.nomprovee, cp.ruccedpro::text), cp.fecinicio, cp.refcuepag
     `;
 
     const result = await client.query(sql);
@@ -39,16 +37,14 @@ async function cuePagar(req, res) {
         grupos.push(actual);
       }
 
-      if (row.fecInicio !== null || row.fecVencim !== null || row.refCuePag !== null || row.valPagPar !== null) {
-        const valor = Number(row.valPagPar) || 0;
-        actual.detalles.push({
-          fecInicio: row.fecInicio,
-          fecVencim: row.fecVencim,
-          refCuePag: row.refCuePag,
-          valPagPar: row.valPagPar
-        });
-        actual.saldoTotal += valor;
-      }
+      const valor = Number(row.valPagPar) || 0;
+      actual.detalles.push({
+        fecInicio: row.fecInicio,
+        fecVencim: row.fecVencim,
+        refCuePag: row.refCuePag,
+        valPagPar: row.valPagPar
+      });
+      actual.saldoTotal += valor;
     }
 
     const totalGeneral = grupos.reduce((suma, proveedor) => suma + proveedor.saldoTotal, 0);
