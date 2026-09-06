@@ -25,6 +25,7 @@ async function compras(req, res) {
     const sql = `
       SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed",
              COALESCE(p.nomprovee, '') AS "proveedor",
+             'FAC' AS "tipoDoc",
              c.numautori AS "autorizacion", c.feccompra AS "fecha",
              COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
              COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
@@ -36,6 +37,7 @@ async function compras(req, res) {
       UNION ALL
       SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed",
              COALESCE(p.nomprovee, '') AS "proveedor",
+             'NV' AS "tipoDoc",
              c.numautori AS "autorizacion", c.feccompra AS "fecha",
              COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
              COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
