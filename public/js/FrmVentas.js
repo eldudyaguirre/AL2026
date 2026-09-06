@@ -50,7 +50,7 @@ function exportarPDF(){
     headStyles:{fontStyle:'bold',fontSize:5.0,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
     footStyles:{fontStyle:'bold',fontSize:5.0,halign:'right',fillColor:[245,245,245],textColor:[20,20,20]},
     columnStyles:{0:{cellWidth:5,halign:'center'},1:{cellWidth:31},2:{cellWidth:12},3:{cellWidth:13,halign:'center'},4:{cellWidth:18},5:{cellWidth:25},6:{cellWidth:13,halign:'right'},7:{cellWidth:13,halign:'right'},8:{cellWidth:10,halign:'right'},9:{cellWidth:12,halign:'right'},10:{cellWidth:10,halign:'right'},11:{cellWidth:11,halign:'right'},12:{cellWidth:18}},
-    margin:{left:8,right:8,top:39,bottom:8},
+    margin:{left:8,right:8,top:8,bottom:8},
     didDrawPage:()=>{const page=doc.internal.getNumberOfPages();doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`pag. ${page}`,202,289,{align:'right'})}
   });
   const nombre=`ventas_${inicio||'inicio'}_${fin||'fin'}.pdf`;
