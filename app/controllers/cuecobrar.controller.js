@@ -64,6 +64,7 @@ async function cueCobrar(req, res) {
     const sql = `
       SELECT
         cp.${c('rucCedCli')} AS "rucCedCli",
+        COALESCE(cl.nomclient, cp.${c('rucCedCli')}::text, '') AS "nomClient",
         cp.${c('fecInicio')} AS "fecInicio",
         cp.${c('fecVencim')} AS "fecVencim",
         cp.${c('numFactur')} AS "numFactur",
@@ -71,8 +72,9 @@ async function cueCobrar(req, res) {
         cp.${c('refCueCob')} AS "refCueCob",
         cp.${c('tipDocume')} AS "tipDocume"
       FROM ${tablaSQL} cp
+      LEFT JOIN clientes cl ON cl.ruccedcli = cp.${c('rucCedCli')}
       WHERE UPPER(TRIM(cp.${c('estPagCue')}::text)) = 'PENDIENTE'
-      ORDER BY cp.${c('rucCedCli')}, cp.${c('fecInicio')}, cp.${c('numFactur')}
+      ORDER BY COALESCE(cl.nomclient, cp.${c('rucCedCli')}::text), cp.${c('fecInicio')}, cp.${c('numFactur')}
     `;
 
     console.log(`[CUECOBRAR] Tabla detectada: ${esquema}.${tabla}`);
@@ -84,6 +86,7 @@ async function cueCobrar(req, res) {
       if (!actual || String(actual.rucCedCli) !== String(row.rucCedCli)) {
         actual = {
           rucCedCli: row.rucCedCli,
+          nomClient: row.nomClient || '',
           detalles: [],
           saldoTotal: 0
         };
