@@ -37,8 +37,8 @@ function exportarPDF(){
   const totalSubtotalConIva=suma('subtotalConIva');
   const totalIva=suma('iva');
   const totalGeneral=suma('total');
-  const totalRetIva=suma('retIva');
   const totalRetRenta=suma('retRenta');
+  const totalRetIva=suma('retIva');
   doc.autoTable({
     startY:39,
     head:[['N°','CLIENTE','RUC','FECHA','FACTURA','NUM AUT.','BASE SIN IVA','BASE CON IVA','IVA','TOTAL','RET IVA','RET RENTA','NUMERO RETENCION']],
