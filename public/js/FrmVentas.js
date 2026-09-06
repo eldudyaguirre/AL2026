@@ -46,10 +46,10 @@ function exportarPDF(){
     foot:[['','','','','','SUMATORIAS',money(totalSubtotalSinIva),money(totalSubtotalConIva),money(totalIva),money(totalGeneral),money(totalRetIva),money(totalRetRenta),'']],
     showFoot:'lastPage',
     theme:'grid',
-    styles:{font:'helvetica',fontSize:5.2,cellPadding:0.8,lineColor:[100,100,100],lineWidth:0.15,textColor:[20,20,20],overflow:'linebreak',valign:'middle'},
-    headStyles:{fontStyle:'bold',fontSize:5.2,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
-    footStyles:{fontStyle:'bold',fontSize:5.2,halign:'right',fillColor:[245,245,245],textColor:[20,20,20]},
-    columnStyles:{0:{cellWidth:7,halign:'center'},1:{cellWidth:38},2:{cellWidth:18},3:{cellWidth:18,halign:'center'},4:{cellWidth:22},5:{cellWidth:32},6:{cellWidth:14,halign:'right'},7:{cellWidth:14,halign:'right'},8:{cellWidth:13,halign:'right'},9:{cellWidth:15,halign:'right'},10:{cellWidth:13,halign:'right'},11:{cellWidth:15,halign:'right'},12:{cellWidth:24}},
+    styles:{font:'helvetica',fontSize:5.0,cellPadding:0.7,lineColor:[100,100,100],lineWidth:0.15,textColor:[20,20,20],overflow:'linebreak',valign:'middle'},
+    headStyles:{fontStyle:'bold',fontSize:5.0,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
+    footStyles:{fontStyle:'bold',fontSize:5.0,halign:'right',fillColor:[245,245,245],textColor:[20,20,20]},
+    columnStyles:{0:{cellWidth:5,halign:'center'},1:{cellWidth:31},2:{cellWidth:12},3:{cellWidth:13,halign:'center'},4:{cellWidth:18},5:{cellWidth:25},6:{cellWidth:13,halign:'right'},7:{cellWidth:13,halign:'right'},8:{cellWidth:10,halign:'right'},9:{cellWidth:12,halign:'right'},10:{cellWidth:10,halign:'right'},11:{cellWidth:11,halign:'right'},12:{cellWidth:18}},
     margin:{left:8,right:8,top:39,bottom:8},
     didDrawPage:()=>{const page=doc.internal.getNumberOfPages();doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`pag. ${page}`,202,289,{align:'right'})}
   });
