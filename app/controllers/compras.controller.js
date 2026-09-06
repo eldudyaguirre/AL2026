@@ -23,22 +23,26 @@ async function compras(req, res) {
     // Se usan literales para evitar el comportamiento anómalo observado con
     // consultas parametrizadas desde Railway.
     const sql = `
-      SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed", '' AS "proveedor",
+      SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed",
+             COALESCE(p.nomprovee, '') AS "proveedor",
              c.numautori AS "autorizacion", c.feccompra AS "fecha",
              COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
              COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
              COALESCE(c.valivacom, 0)::text AS "iva",
              COALESCE(c.totcompra, 0)::text AS "total"
       FROM compras c
+      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
       WHERE c.feccompra >= DATE '${inicio}' AND c.feccompra <= DATE '${fin}'
       UNION ALL
-      SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed", '' AS "proveedor",
+      SELECT c.numfaccom AS "numero", c.ruccedpro AS "rucCed",
+             COALESCE(p.nomprovee, '') AS "proveedor",
              c.numautori AS "autorizacion", c.feccompra AS "fecha",
              COALESCE(c.totsiniva, 0)::text AS "subtotalSinIva",
              COALESCE(c.totconiva, 0)::text AS "subtotalConIva",
              COALESCE(c.valivacom, 0)::text AS "iva",
              COALESCE(c.totcompra, 0)::text AS "total"
       FROM comprasnv c
+      LEFT JOIN proveedores p ON p.ruccedpro = c.ruccedpro
       WHERE c.feccompra >= DATE '${inicio}' AND c.feccompra <= DATE '${fin}'
       ORDER BY "fecha" DESC, "numero" DESC
     `;
