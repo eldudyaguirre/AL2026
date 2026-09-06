@@ -40,14 +40,14 @@ function exportarPDF(){
     startY:41,
     head:[['N°','PROVEEDOR','RUC','TIP DOC','FECHA','NUMERO FACTURA','NUM AUT.','BASE SIN IVA','BASE CON IVA','IVA','TOTAL']],
     body,
-    foot:[['','','','','','','SUMATORIAS','',money(totalSubtotalSinIva),money(totalSubtotalConIva),money(totalIva),money(totalGeneral)]],
+    foot:[['','','','','','','SUMATORIAS',money(totalSubtotalSinIva),money(totalSubtotalConIva),money(totalIva),money(totalGeneral)]],
     showFoot:'lastPage',
     theme:'grid',
     styles:{font:'helvetica',fontSize:5.9,cellPadding:1.1,lineColor:[100,100,100],lineWidth:0.15,textColor:[20,20,20],overflow:'linebreak',valign:'middle'},
     headStyles:{fontStyle:'bold',fontSize:6.1,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
     footStyles:{fontStyle:'bold',fontSize:6.1,halign:'right',fillColor:[245,245,245],textColor:[20,20,20]},
     columnStyles:{0:{cellWidth:7,halign:'center'},1:{cellWidth:52},2:{cellWidth:27},3:{cellWidth:14,halign:'center'},4:{cellWidth:21,halign:'center'},5:{cellWidth:32},6:{cellWidth:49},7:{cellWidth:21,halign:'right'},8:{cellWidth:21,halign:'right'},9:{cellWidth:17,halign:'right'},10:{cellWidth:20,halign:'right'}},
-    margin:{left:8,right:8,top:41,bottom:12},
+    margin:{left:8,right:8,top:8,bottom:12},
     didDrawPage:()=>{const page=doc.internal.getNumberOfPages();doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`pag. ${page}`,289,202,{align:'right'})}
   });
   const nombre=`compras_${inicio||'inicio'}_${fin||'fin'}.pdf`;
