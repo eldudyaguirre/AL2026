@@ -10,7 +10,8 @@ function fecha(valor){if(!valor)return '-';const t=String(valor);const m=t.match
 function escapar(valor){return texto(valor).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function pintarReporte(d){
   reporteActual=d;
-  document.getElementById('count').textContent=`${d.totalProveedores||0} proveedor(es) · ${d.totalRegistros||0} cuenta(s)`;
+  const count=document.getElementById('count');
+  if(count)count.textContent=`${d.totalProveedores||0} proveedor(es) · ${d.totalRegistros||0} cuenta(s)`;
   const cuerpo=document.getElementById('reporte-body');
   let html='';
   (d.proveedores||[]).forEach(p=>{
@@ -20,7 +21,7 @@ function pintarReporte(d){
     });
     html+=`<tr class="saldo"><td colspan="3">S A L D O&nbsp;&nbsp;T O T A L:</td><td class="valor">${dinero(p.saldoTotal)}</td></tr>`;
   });
-  if(!html)html='<tr><td colspan="4" class="empty">No hay Proveedores con saldo pendiente.</td></tr>';
+  if(!html)html='<tr><td colspan="4" class="empty">No hay cuentas por pagar con estado PENDIENTE.</td></tr>';
   cuerpo.innerHTML=html;
   document.getElementById('total-general').textContent=dinero(d.totalGeneral);
 }
@@ -30,8 +31,9 @@ async function cargarCuePagar(){
   try{
     const r=await fetch(`/api/cuepagar?_=${Date.now()}`);
     const respuesta=await r.text();
-    let d={};try{d=JSON.parse(respuesta)}catch(_){throw new Error(`El servidor respondió con HTTP ${r.status} sin JSON válido.`)}
-    if(!r.ok)throw new Error(d.error||d.detail||`Error HTTP ${r.status}`);
+    let d={};
+    try{d=JSON.parse(respuesta)}catch(_){throw new Error(`El servidor respondió con HTTP ${r.status} sin JSON válido.`)}
+    if(!r.ok)throw new Error(d.detail?`${d.error||'Error consultando cuentas por pagar.'} ${d.detail}`:(d.error||`Error HTTP ${r.status}`));
     pintarReporte(d);
   }catch(e){
     reporteActual=null;
@@ -50,7 +52,7 @@ function filasPDF(){
 }
 function exportarPDF(){
   if(!reporteActual){alert('Primero debe cargar las cuentas por pagar.');return}
-  if(!reporteActual.proveedores?.length){alert('No hay Proveedores con saldo pendiente.');return}
+  if(!reporteActual.proveedores?.length){alert('No hay cuentas por pagar pendientes.');return}
   if(!window.jspdf||!window.jspdf.jsPDF){alert('No se pudo cargar el generador de PDF.');return}
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
