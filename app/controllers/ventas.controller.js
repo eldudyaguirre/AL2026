@@ -36,6 +36,7 @@ async function ventas(req, res) {
       FROM facturas f
       WHERE f.fecfactur >= DATE '${inicio}'
         AND f.fecfactur <= DATE '${fin}'
+        AND f.estprofac = 'PROCESADA'
       ORDER BY f.fecfactur DESC, f.numfactur DESC
     `;
 
