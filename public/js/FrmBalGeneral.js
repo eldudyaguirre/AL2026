@@ -38,12 +38,42 @@ function filasPDF(){
   const filas=[];const agregar=(titulo,rows,total)=>{filas.push({tipo:'seccion',texto:titulo});for(const r of rows||[])filas.push({tipo:'cuenta',texto:r.nomCuenta||'',valor:dinero(r.salFinPer),nivel:Number(r.nivel)||0,raiz:String(r.codCuenta||'').length===1});filas.push({tipo:'total',texto:`TOTAL ${titulo}:`,valor:dinero(total)})};
   agregar('ACTIVO',balanceActual.activo,balanceActual.totalActivo);agregar('PASIVO',balanceActual.pasivo,balanceActual.totalPasivo);agregar('PATRIMONIO',balanceActual.patrimonio,balanceActual.totalPatrimonio);return filas;
 }
-function encabezadoPDF(doc,pagina){doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('Complete Accounting System - CONTABILIDAD',5,8);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('BALANCE GENERAL',105,17,{align:'center'});doc.setFontSize(8);doc.text(`PERIODO FISCAL: ${balanceActual.mes}/${balanceActual.anio}     ${balanceActual.nivel}`,5,25);doc.line(5,27,205,27);doc.setFontSize(9);doc.text('CUENTAS',8,26);doc.text('VALORES',160,26);doc.line(5,28,205,28);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setFontSize(7);doc.text(`pag. ${pagina}`,205,289,{align:'right'})}
-function nuevaPaginaPDF(doc,pagina){doc.addPage();encabezadoPDF(doc,pagina);return 34}
+function encabezadoPDF(doc,pagina){
+  // Cabecera con separación suficiente para evitar que PERIODO, CUENTAS y las líneas se monten.
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.text('Complete Accounting System - CONTABILIDAD',5,8);
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(18);
+  doc.text('BALANCE GENERAL',105,17,{align:'center'});
+
+  // Período en su propia línea.
+  doc.setFontSize(8);
+  doc.text(`PERIODO FISCAL: ${balanceActual.mes}/${balanceActual.anio}     ${balanceActual.nivel}`,5,25);
+
+  // Línea separadora debajo del período.
+  doc.setLineWidth(0.35);
+  doc.line(5,29,205,29);
+
+  // Encabezados de columnas claramente separados de la línea anterior.
+  doc.setFontSize(9);
+  doc.text('CUENTAS',8,35);
+  doc.text('VALORES',160,35);
+
+  // Segunda línea separadora, debajo de los encabezados.
+  doc.setLineWidth(0.25);
+  doc.line(5,37,205,37);
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7);
+  doc.text(`pag. ${pagina}`,205,289,{align:'right'});
+}
+function nuevaPaginaPDF(doc,pagina){doc.addPage();encabezadoPDF(doc,pagina);return 43}
 function exportarPDF(){
   if(!balanceActual)return;
   if(!window.jspdf?.jsPDF){alert('No se pudo cargar el generador de PDF.');return}
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});let pagina=1;let y=34;encabezadoPDF(doc,pagina);
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});let pagina=1;let y=43;encabezadoPDF(doc,pagina);
   const filas=filasPDF();
   for(const f of filas){
     const alto=f.tipo==='cuenta'?4:f.tipo==='total'?6:5;
