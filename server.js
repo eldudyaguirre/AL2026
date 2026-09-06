@@ -2,6 +2,7 @@ const express = require('express');
 const authRoutes = require('./app/routes/auth.routes');
 const systemRoutes = require('./app/routes/system.routes');
 const comprasRoutes = require('./app/routes/compras.routes');
+const ventasRoutes = require('./app/routes/ventas.routes');
 const systemController = require('./app/controllers/system.controller');
 const pool = require('./app/database/postgres');
 
@@ -19,6 +20,7 @@ app.get('/frmmenprinci.html', (_req, res) => res.redirect('/html/frmmenprinci.ht
 app.use('/api', authRoutes);
 app.use('/api', systemRoutes);
 app.use('/api', comprasRoutes);
+app.use('/api', ventasRoutes);
 
 // Compatibilidad: /health continúa disponible en la raíz.
 app.get('/health', systemController.health);
