@@ -10,25 +10,25 @@ function texto(valor){return valor===null||valor===undefined||valor===''?'-':Str
 function numeroRetencion(valor){return valor===null||valor===undefined||valor===''?'SIN RETENCION':String(valor)}
 function pintarFilas(rows){ventasActuales=rows||[];const tbody=document.getElementById('ventas-body');if(!ventasActuales.length){tbody.innerHTML='<tr><td colspan="12" class="empty">No existen ventas para el rango seleccionado.</td></tr>';return}tbody.innerHTML=ventasActuales.map(r=>`<tr><td>${texto(r.cliente)}</td><td>${texto(r.rucCed)}</td><td>${formatoFecha(r.fecha)}</td><td>${texto(r.factura)}</td><td>${texto(r.autorizacion)}</td><td class="number">${dinero(r.subtotalSinIva)}</td><td class="number">${dinero(r.subtotalConIva)}</td><td class="number">${dinero(r.iva)}</td><td class="number">${dinero(r.total)}</td><td class="number">${dinero(r.retIva)}</td><td class="number">${dinero(r.retRenta)}</td><td>${numeroRetencion(r.numRetencion)}</td></tr>`).join('')}
 async function cargarVentas(){const inicio=document.getElementById('fecha-inicio').value;const fin=document.getElementById('fecha-fin').value;const tbody=document.getElementById('ventas-body');tbody.innerHTML='<tr><td colspan="12" class="loading">Consultando ventas...</td></tr>';const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),35000);try{const r=await fetch(`/api/ventas?inicio=${encodeURIComponent(inicio)}&fin=${encodeURIComponent(fin)}&_=${Date.now()}`,{signal:controller.signal});const textoRespuesta=await r.text();let d={};try{d=JSON.parse(textoRespuesta)}catch(_){throw new Error(`El servidor respondió con HTTP ${r.status} sin JSON válido.`)}if(!r.ok)throw new Error(d.error||d.detail||`Error HTTP ${r.status}`);pintarFilas(d.ventas||[]);document.getElementById('count').textContent=`${d.total||0} registro(s)`}catch(e){ventasActuales=[];const mensaje=e.name==='AbortError'?'La consulta excedió los 35 segundos. Verifica la conexión con PostgreSQL.':(e.message||'No se pudieron consultar las ventas.');tbody.innerHTML=`<tr><td colspan="12" class="error">${texto(mensaje)}</td></tr>`;document.getElementById('count').textContent='Error'}finally{clearTimeout(timer)}}
-function fechasIniciales(){const hoy=new Date();const y=hoy.getFullYear();const m=String(hoy.getMonth()+1).padStart(2,'0');const d=String(hoy.getDate()).padStart(2,'0');document.getElementById('fecha-inicio').value=`${y}-${m}-${d}`;document.getElementById('fecha-fin').value=`${y}-${m}-${d}`}
+function fechasIniciales(){const hoy=new Date();const y=hoy.getFullYear();const m=String(hoy.getMonth()+1).padStart(2,'0');const d=String(hoy.getDate()).padStart(2,'0');document.getElementById('fecha-inicio').value=`${y}-${m}-01`;document.getElementById('fecha-fin').value=`${y}-${m}-${d}`}
 function exportarPDF(){
   if(!ventasActuales.length){alert('Primero debe consultar las ventas que desea exportar.');return}
   if(!window.jspdf||!window.jspdf.jsPDF){alert('No se pudo cargar el generador de PDF. Verifique la conexión a Internet y vuelva a intentarlo.');return}
   const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const inicio=document.getElementById('fecha-inicio').value;
   const fin=document.getElementById('fecha-fin').value;
   const fechaTexto=(valor)=>{if(!valor)return '-';const p=String(valor).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:valor};
   const money=(valor)=>{const n=Number(valor||0);return n.toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2});};
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
-  doc.text('DECLARACION MENSUAL DE IVA',148.5,10,{align:'center'});
+  doc.text('DECLARACION MENSUAL DE IVA',105,10,{align:'center'});
   doc.setFontSize(13);
-  doc.text('VENTAS',148.5,16,{align:'center'});
+  doc.text('VENTAS',105,16,{align:'center'});
   doc.setFontSize(10);
-  doc.text(`PERIODO DEL ${fechaTexto(inicio)} AL ${fechaTexto(fin)}`,148.5,22,{align:'center'});
-  doc.text('ROMERO APOLO LUIS HILDER',148.5,28,{align:'center'});
-  doc.text('RUC.0701005514001',148.5,34,{align:'center'});
+  doc.text(`PERIODO DEL ${fechaTexto(inicio)} AL ${fechaTexto(fin)}`,105,22,{align:'center'});
+  doc.text('ROMERO APOLO LUIS HILDER',105,28,{align:'center'});
+  doc.text('RUC.0701005514001',105,34,{align:'center'});
   const body=ventasActuales.map((r,i)=>[
     String(i+1),texto(r.cliente),texto(r.rucCed),formatoFecha(r.fecha),texto(r.factura),texto(r.autorizacion),money(r.subtotalSinIva),money(r.subtotalConIva),money(r.iva),money(r.total),money(r.retIva),money(r.retRenta),numeroRetencion(r.numRetencion)
   ]);
@@ -37,21 +37,21 @@ function exportarPDF(){
   const totalSubtotalConIva=suma('subtotalConIva');
   const totalIva=suma('iva');
   const totalGeneral=suma('total');
-  const totalRetRenta=suma('retRenta');
   const totalRetIva=suma('retIva');
+  const totalRetRenta=suma('retRenta');
   doc.autoTable({
     startY:39,
-    head:[['N°','CLIENTE','RUC','FECHA','FACTURA','NUM AUT.','BASE SIN IVA','BASE CON IVA','IVA','TOTAL','RET IVA','RET RENTA','NUMERO RETENCION']],
+    head:[['N°','CLIENTE','RUC','FECHA','FACTURA','NUM AUT.','BASES SIN IVA','BASES CON IVA','IVA','TOTAL','RET IVA','RET RENTA','NUMERO RETENCION']],
     body,
     foot:[['','','','','','SUMATORIAS',money(totalSubtotalSinIva),money(totalSubtotalConIva),money(totalIva),money(totalGeneral),money(totalRetIva),money(totalRetRenta),'']],
     showFoot:'lastPage',
     theme:'grid',
-    styles:{font:'helvetica',fontSize:5.7,cellPadding:1.0,lineColor:[100,100,100],lineWidth:0.15,textColor:[20,20,20],overflow:'linebreak',valign:'middle'},
-    headStyles:{fontStyle:'bold',fontSize:5.9,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
-    footStyles:{fontStyle:'bold',fontSize:5.9,halign:'right',fillColor:[245,245,245],textColor:[20,20,20]},
-    columnStyles:{0:{cellWidth:7,halign:'center'},1:{cellWidth:58},2:{cellWidth:25},3:{cellWidth:21,halign:'center'},4:{cellWidth:25},5:{cellWidth:49},6:{cellWidth:21,halign:'right'},7:{cellWidth:21,halign:'right'},8:{cellWidth:17,halign:'right'},9:{cellWidth:20,halign:'right'},10:{cellWidth:18,halign:'right'},11:{cellWidth:20,halign:'right'},12:{cellWidth:32}},
+    styles:{font:'helvetica',fontSize:5.2,cellPadding:0.8,lineColor:[100,100,100],lineWidth:0.15,textColor:[20,20,20],overflow:'linebreak',valign:'middle'},
+    headStyles:{fontStyle:'bold',fontSize:5.2,halign:'center',fillColor:[245,245,245],textColor:[20,20,20]},
+    footStyles:{fontStyle:'bold',fontSize:5.2,halign:'right',fillColor:[245,245,245],textColor:[20,20,20]},
+    columnStyles:{0:{cellWidth:7,halign:'center'},1:{cellWidth:38},2:{cellWidth:18},3:{cellWidth:18,halign:'center'},4:{cellWidth:22},5:{cellWidth:32},6:{cellWidth:14,halign:'right'},7:{cellWidth:14,halign:'right'},8:{cellWidth:13,halign:'right'},9:{cellWidth:15,halign:'right'},10:{cellWidth:13,halign:'right'},11:{cellWidth:15,halign:'right'},12:{cellWidth:24}},
     margin:{left:8,right:8,top:39,bottom:8},
-    didDrawPage:()=>{const page=doc.internal.getNumberOfPages();doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`pag. ${page}`,289,202,{align:'right'})}
+    didDrawPage:()=>{const page=doc.internal.getNumberOfPages();doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`pag. ${page}`,202,289,{align:'right'})}
   });
   const nombre=`ventas_${inicio||'inicio'}_${fin||'fin'}.pdf`;
   doc.save(nombre);
