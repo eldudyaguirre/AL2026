@@ -1,11 +1,12 @@
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 const TABLES_CONFIG = process.env.SYNC_TABLES
   ? process.env.SYNC_TABLES.split(',').map((value) => value.trim()).filter(Boolean)
   : null;
 
-const INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 5000);
-const BATCH_SIZE = Number(process.env.SYNC_BATCH_SIZE || 200);
+const INTERVAL_MS = Math.max(1000, Number(process.env.SYNC_INTERVAL_MS || 10000));
+const BATCH_SIZE = Math.max(1, Number(process.env.SYNC_BATCH_SIZE || 200));
 
 if (!process.env.LOCAL_DATABASE_URL || !process.env.RAILWAY_DATABASE_URL) {
   console.error('Faltan LOCAL_DATABASE_URL y/o RAILWAY_DATABASE_URL.');
@@ -32,6 +33,24 @@ function quoteIdentifier(value) {
     throw new Error(`Identificador inválido: ${value}`);
   }
   return `"${value}"`;
+}
+
+function normalizeValue(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (Buffer.isBuffer(value)) return value.toString('base64');
+  return value;
+}
+
+function rowHash(row, columns) {
+  const payload = columns.map((column) => [
+    column.column_name,
+    normalizeValue(row[column.column_name]),
+  ]);
+  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
+function primaryKeyToken(row, primaryKey) {
+  return JSON.stringify(primaryKey.map((column) => normalizeValue(row[column])));
 }
 
 async function getTables(client) {
@@ -122,45 +141,115 @@ async function ensureTargetTable(client, table, schema) {
     throw new Error(`La estructura de public.${table} en Railway no coincide con LOCAL.`);
   }
 
-  if (schema.primaryKey.length) {
-    const primaryKeyExists = await client.query(`
-      SELECT 1
-      FROM pg_index i
-      JOIN pg_class t ON t.oid = i.indrelid
-      JOIN pg_namespace n ON n.oid = t.relnamespace
-      WHERE n.nspname = 'public'
-        AND t.relname = $1
-        AND i.indisprimary
-    `, [table]);
+  if (!schema.primaryKey.length) {
+    throw new Error(`La tabla public.${table} no tiene clave primaria. El modo incremental requiere PRIMARY KEY.`);
+  }
 
-    if (!primaryKeyExists.rowCount) {
-      const constraintName = `pk_sync_${table}`;
-      await client.query(
-        `ALTER TABLE ${tableSql} ADD CONSTRAINT ${quoteIdentifier(constraintName)} PRIMARY KEY (${schema.primaryKey.map(quoteIdentifier).join(', ')})`
-      );
-    }
+  const primaryKeyExists = await client.query(`
+    SELECT 1
+    FROM pg_index i
+    JOIN pg_class t ON t.oid = i.indrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE n.nspname = 'public'
+      AND t.relname = $1
+      AND i.indisprimary
+  `, [table]);
+
+  if (!primaryKeyExists.rowCount) {
+    const constraintName = `pk_sync_${table}`;
+    await client.query(
+      `ALTER TABLE ${tableSql} ADD CONSTRAINT ${quoteIdentifier(constraintName)} PRIMARY KEY (${schema.primaryKey.map(quoteIdentifier).join(', ')})`
+    );
   }
 }
 
-async function insertBatch(client, table, columns, rows) {
+async function loadTargetRows(client, table, columns) {
+  const result = await client.query(`SELECT * FROM ${quoteIdentifier(table)}`);
+  const map = new Map();
+  for (const row of result.rows) {
+    map.set(primaryKeyToken(row, columns.primaryKey), rowHash(row, columns.columns));
+  }
+  return map;
+}
+
+async function upsertBatch(client, table, schema, rows) {
   if (!rows.length) return;
 
   const tableSql = quoteIdentifier(table);
-  const columnSql = columns.map((column) => quoteIdentifier(column.column_name)).join(', ');
-  const values = [];
+  const columnSql = schema.columns.map((column) => quoteIdentifier(column.column_name)).join(', ');
+  const conflictSql = schema.primaryKey.map(quoteIdentifier).join(', ');
+  const updateColumns = schema.columns
+    .filter((column) => !schema.primaryKey.includes(column.column_name))
+    .map((column) => `${quoteIdentifier(column.column_name)} = EXCLUDED.${quoteIdentifier(column.column_name)}`)
+    .join(', ');
 
+  const values = [];
   const tuples = rows.map((row, rowIndex) => {
-    const placeholders = columns.map((column, columnIndex) => {
+    const placeholders = schema.columns.map((column, columnIndex) => {
       values.push(row[column.column_name]);
-      return `$${rowIndex * columns.length + columnIndex + 1}`;
+      return `$${rowIndex * schema.columns.length + columnIndex + 1}`;
     });
     return `(${placeholders.join(', ')})`;
   }).join(', ');
 
+  const action = updateColumns
+    ? `DO UPDATE SET ${updateColumns}`
+    : 'DO NOTHING';
+
   await client.query(
-    `INSERT INTO ${tableSql} (${columnSql}) VALUES ${tuples}`,
+    `INSERT INTO ${tableSql} (${columnSql}) VALUES ${tuples} ON CONFLICT (${conflictSql}) ${action}`,
     values
   );
+}
+
+async function deleteMissingRows(client, table, schema, localKeys) {
+  const target = await client.query(`SELECT * FROM ${quoteIdentifier(table)}`);
+  let deleted = 0;
+
+  for (const row of target.rows) {
+    const token = primaryKeyToken(row, schema.primaryKey);
+    if (localKeys.has(token)) continue;
+
+    const where = schema.primaryKey.map((column, index) => `${quoteIdentifier(column)} IS NOT DISTINCT FROM $${index + 1}`).join(' AND ');
+    const values = schema.primaryKey.map((column) => row[column]);
+    const result = await client.query(`DELETE FROM ${quoteIdentifier(table)} WHERE ${where}`, values);
+    deleted += result.rowCount;
+  }
+
+  return deleted;
+}
+
+async function syncTable(local, railway, table) {
+  const schema = await getTableSchema(local, table);
+  await ensureTargetTable(railway, table, schema);
+
+  const result = await local.query(`SELECT * FROM ${quoteIdentifier(table)}`);
+  const localRows = result.rows;
+  const localKeys = new Set(localRows.map((row) => primaryKeyToken(row, schema.primaryKey)));
+  const targetHashes = await loadTargetRows(railway, table, schema);
+
+  const changedRows = localRows.filter((row) => {
+    const key = primaryKeyToken(row, schema.primaryKey);
+    return targetHashes.get(key) !== rowHash(row, schema.columns);
+  });
+
+  for (let offset = 0; offset < changedRows.length; offset += BATCH_SIZE) {
+    await upsertBatch(
+      railway,
+      table,
+      schema,
+      changedRows.slice(offset, offset + BATCH_SIZE)
+    );
+  }
+
+  const deleted = await deleteMissingRows(railway, table, schema, localKeys);
+
+  return {
+    table,
+    local: localRows.length,
+    changed: changedRows.length,
+    deleted,
+  };
 }
 
 async function syncOnce() {
@@ -170,49 +259,26 @@ async function syncOnce() {
 
   try {
     await local.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
-
     const tables = await getTables(local);
-    const snapshots = [];
-
-    for (const table of tables) {
-      const schema = await getTableSchema(local, table);
-      const result = await local.query(`SELECT * FROM ${quoteIdentifier(table)}`);
-      snapshots.push({ table, schema, rows: result.rows });
-    }
-
-    await local.query('COMMIT');
 
     await railway.query('BEGIN');
+    const results = [];
 
-    for (const snapshot of snapshots) {
-      await ensureTargetTable(railway, snapshot.table, snapshot.schema);
-    }
-
-    for (const snapshot of snapshots) {
-      await railway.query(`DELETE FROM ${quoteIdentifier(snapshot.table)}`);
-
-      for (let offset = 0; offset < snapshot.rows.length; offset += BATCH_SIZE) {
-        const batch = snapshot.rows.slice(offset, offset + BATCH_SIZE);
-        await insertBatch(
-          railway,
-          snapshot.table,
-          snapshot.schema.columns,
-          batch
-        );
-      }
+    for (const table of tables) {
+      results.push(await syncTable(local, railway, table));
     }
 
     await railway.query('COMMIT');
+    await local.query('COMMIT');
 
-    const counts = snapshots
-      .map((snapshot) => `${snapshot.table}=${snapshot.rows.length}`)
-      .join(', ');
+    const summary = results
+      .map((item) => `${item.table}=${item.local} filas, ${item.changed} cambios, ${item.deleted} eliminadas`)
+      .join(' | ');
 
-    console.log(`[SYNC] OK ${counts} en ${Date.now() - started} ms`);
+    console.log(`[SYNC] OK en ${Date.now() - started} ms :: ${summary}`);
   } catch (error) {
     try { await local.query('ROLLBACK'); } catch (_) {}
     try { await railway.query('ROLLBACK'); } catch (_) {}
-
     console.error(`[SYNC] ERROR después de ${Date.now() - started} ms: ${error.message}`);
   } finally {
     local.release();
@@ -224,7 +290,6 @@ let running = false;
 
 async function tick() {
   if (running) return;
-
   running = true;
   try {
     await syncOnce();
@@ -242,10 +307,7 @@ setInterval(tick, INTERVAL_MS);
 
 async function shutdown(signal) {
   console.log(`[SYNC] Cerrando por ${signal}...`);
-  await Promise.allSettled([
-    localPool.end(),
-    railwayPool.end(),
-  ]);
+  await Promise.allSettled([localPool.end(), railwayPool.end()]);
   process.exit(0);
 }
 
