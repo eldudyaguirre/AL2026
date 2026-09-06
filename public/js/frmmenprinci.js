@@ -22,11 +22,20 @@ async function cargarDashboard(){
     const data=await response.json();
     const usuario=data.usuario||'';
     const nombre=data.nombre||usuario||'-';
-    document.getElementById('profile-name').textContent=usuario;
-    document.getElementById('profile-user').textContent=nombre;
-    document.getElementById('nombre').textContent=nombre;
-    document.getElementById('api-value').textContent='OK';
-    document.getElementById('db-value').textContent='OK';
+
+    // Estos elementos pueden no existir en la nueva pantalla principal.
+    // No deben provocar un error que termine expulsando al usuario.
+    const profileName=document.getElementById('profile-name');
+    const profileUser=document.getElementById('profile-user');
+    const nombreElement=document.getElementById('nombre');
+    const apiValue=document.getElementById('api-value');
+    const dbValue=document.getElementById('db-value');
+
+    if(profileName) profileName.textContent=usuario;
+    if(profileUser) profileUser.textContent=nombre;
+    if(nombreElement) nombreElement.textContent=nombre;
+    if(apiValue) apiValue.textContent='OK';
+    if(dbValue) dbValue.textContent='OK';
   }catch(_){window.location.href='/login.html';}
 }
 
