@@ -1,7 +1,7 @@
 const pool = require('../database/postgres');
 
 const CAMPOS_OCULTOS = new Set([
-  'tipopro', 'tipprov', 'tipidprov', 'areprovee', 'numserfac', 'codcuefuebie', 'codcueivabie',
+  'tipopro', 'tipprov', 'tipidprov', 'tpidprov', 'areprovee', 'numserfac', 'codcuefuebie', 'codcueivabie',
   'codcuefueser', 'codcueivaser', 'infespeci', 'numautori', 'feccaduci', 'chependie',
   'creadopor', 'creadoen', 'estado', 'antpersonal', 'antperson', 'limcredit', 'salantici', 'salnotcre',
   'fecultpag', 'numdiacre', 'codcuecon', 'porretfuebie', 'porretivabie', 'porretfueser',
@@ -74,7 +74,7 @@ async function obtenerMetadatosCuentasPagar(client) {
     `, [esquema, tabla])).rows.map(r => [String(r.column_name).toLowerCase(), r.column_name])
   );
 
-  const requeridas = ['fecinicio', 'fecvencim', 'numfactur', 'valpagpar', 'estpagcue', 'ruccedpro'];
+  const requeridas = ['fecinicio', 'fecvencim', 'numfaccom', 'valpagpar', 'estpagcue', 'ruccedpro'];
   if (requeridas.some(campo => !columnas.has(campo))) return null;
 
   const ref = columnas.get('refcuepagar') || columnas.get('refcuepag') || null;
@@ -94,13 +94,13 @@ async function obtenerFacturasPendientes(client, ruc) {
     SELECT
       cp.${ident(meta.c('fecinicio'))} AS "fecInicio",
       cp.${ident(meta.c('fecvencim'))} AS "fecVencim",
-      cp.${ident(meta.c('numfactur'))} AS "numFactur",
+      cp.${ident(meta.c('numfaccom'))} AS "numFactur",
       cp.${ident(meta.c('valpagpar'))} AS "valPagPar",
       ${referencia} AS "refCuePag"
     FROM ${meta.tablaSQL} cp
     WHERE CAST(cp.${ident(meta.c('ruccedpro'))} AS text) = $1
       AND UPPER(TRIM(cp.${ident(meta.c('estpagcue'))}::text)) = 'PENDIENTE'
-    ORDER BY cp.${ident(meta.c('fecvencim'))}, cp.${ident(meta.c('fecinicio'))}, cp.${ident(meta.c('numfactur'))}
+    ORDER BY cp.${ident(meta.c('fecvencim'))}, cp.${ident(meta.c('fecinicio'))}, cp.${ident(meta.c('numfaccom'))}
   `, [ruc]);
 
   return result.rows;
