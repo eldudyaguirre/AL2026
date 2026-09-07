@@ -1,11 +1,211 @@
 const pool = require('../database/postgres');
-const OCULTOS = new Set(['tipopro','tipprov','estado','antpersonal','antperson','limcredit','salantici','salnotcre','fecultpag','numdiacre','codcuecon','porretfuebie','porretivabie','porretfueser','porretivaser','salvencid1','salvencid2','salvencid3','salvencid4','codcueant','codcuencr']);
-const C_RUC=['ruccedpro','ruc','rucced','ruc_ced','identificacion','cedula'];
-const C_NOM=['nomprove','nomprov','nompro','nomproveedor','nombres','nombre','razonsocial','razon_social'];
-function ident(v){return '"'+String(v).replace(/"/g,'""')+'"';}
-async function meta(client){const t=await client.query(`SELECT table_schema,table_name FROM information_schema.tables WHERE table_type='BASE TABLE' AND lower(table_name)='proveedores' ORDER BY CASE WHEN table_schema='public' THEN 0 ELSE 1 END LIMIT 1`);if(!t.rows.length)throw new Error('No existe la tabla proveedores.');const {table_schema:s,table_name:tbn}=t.rows[0];const cols=(await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position`,[s,tbn])).rows.map(r=>r.column_name);const find=a=>cols.find(c=>a.includes(c.toLowerCase()));const r=find(C_RUC),n=find(C_NOM),saldo=cols.find(c=>c.toLowerCase()==='salcuenta');if(!r||!n)throw new Error(`No se encontraron RUC/nombre en proveedores. RUC: ${r||'no encontrada'}, nombres: ${n||'no encontrada'}.`);return{s,tbn,cols,r,n,saldo};}
-async function metaPagar(client){const t=await client.query(`SELECT table_schema,table_name FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_schema NOT IN ('pg_catalog','information_schema') AND regexp_replace(lower(table_name),'[ _-]','','g')='cuentaspagar' ORDER BY CASE WHEN table_schema='public' THEN 0 ELSE 1 END LIMIT 1`);if(!t.rows.length)return null;const {table_schema:s,table_name:tbn}=t.rows[0];const cols=new Map((await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name=$2`,[s,tbn])).rows.map(r=>[r.column_name.toLowerCase(),r.column_name]));const req=['fecinicio','fecvencim','numfactur','valpagpar','estpagcue','ruccedpro'];if(req.some(x=>!cols.has(x)))return null;const ref=cols.get('refcuepagar')||cols.get('refcuepag')||null;return{tableSQL:`${ident(s)}.${ident(tbn)}`,c:k=>cols.get(k),ref};}
-async function facturas(client,ruc){const m=await metaPagar(client);if(!m)return[];const ref=m.ref?`cp.${ident(m.ref)}`:`''`;const q=`SELECT cp.${ident(m.c('fecinicio'))} AS "fecInicio",cp.${ident(m.c('fecvencim'))} AS "fecVencim",cp.${ident(m.c('numfactur'))} AS "numFactur",cp.${ident(m.c('valpagpar'))} AS "valPagPar",${ref} AS "refCuePag" FROM ${m.tableSQL} cp WHERE CAST(cp.${ident(m.c('ruccedpro'))} AS text)=$1 AND UPPER(TRIM(cp.${ident(m.c('estpagcue'))}::text))='PENDIENTE' ORDER BY cp.${ident(m.c('fecvencim'))},cp.${ident(m.c('fecinicio'))},cp.${ident(m.c('numfactur'))}`;return(await client.query(q,[ruc])).rows;}
-async function proveedores(req,res){let c;try{c=pool.createDedicatedClient();await c.connect();const m=await meta(c),q=String(req.query.q||'').trim(),lim=Math.min(Math.max(Number(req.query.limite)||500,1),2000);const vals=[];let where='';if(q){vals.push(`%${q}%`);where=`WHERE CAST(${ident(m.r)} AS text) ILIKE $1 OR CAST(${ident(m.n)} AS text) ILIKE $1`;}const rows=(await c.query(`SELECT CAST(${ident(m.r)} AS text) ruc,CAST(${ident(m.n)} AS text) nombres FROM ${ident(m.s)}.${ident(m.tbn)} ${where} ORDER BY ${ident(m.n)} LIMIT ${lim}`,vals)).rows;res.json({total:rows.length,proveedores:rows});}catch(e){console.error('[PROVEEDORES]',e);res.status(500).json({error:'Error consultando proveedores.',detail:e.message});}finally{if(c)await c.end().catch(()=>{});}}
-async function proveedorDetalle(req,res){let c;try{const ruc=String(req.params.ruc||'').trim();c=pool.createDedicatedClient();await c.connect();const m=await meta(c);const visibles=m.cols.filter(x=>!OCULTOS.has(x.toLowerCase())&&x.toLowerCase()!=='salcuenta');const row=(await c.query(`SELECT ${visibles.map(ident).join(',')} FROM ${ident(m.s)}.${ident(m.tbn)} WHERE CAST(${ident(m.r)} AS text)=$1 LIMIT 1`,[ruc])).rows[0];if(!row)return res.status(404).json({error:'Proveedor no encontrado.'});const fac=await facturas(c,ruc);let saldo=m.saldo?Number((await c.query(`SELECT ${ident(m.saldo)} FROM ${ident(m.s)}.${ident(m.tbn)} WHERE CAST(${ident(m.r)} AS text)=$1 LIMIT 1`,[ruc])).rows[0]?.[m.saldo]):NaN;if(!Number.isFinite(saldo))saldo=fac.reduce((s,f)=>s+(Number(f.valPagPar)||0),0);res.json({proveedor:row,columnas:visibles,saldoCuenta:saldo,facturasPendientes:fac,totalFacturasPendientes:fac.length});}catch(e){console.error('[PROVEEDORES]',e);res.status(500).json({error:'Error consultando detalle del proveedor.',detail:e.message});}finally{if(c)await c.end().catch(()=>{});}}
-module.exports={proveedores,proveedorDetalle};
+
+const CAMPOS_OCULTOS = new Set([
+  'tipopro', 'tipprov', 'estado', 'antpersonal', 'antperson', 'limcredit', 'salantici', 'salnotcre',
+  'fecultpag', 'numdiacre', 'codcuecon', 'porretfuebie', 'porretivabie', 'porretfueser',
+  'porretivaser', 'salvencid1', 'salvencid2', 'salvencid3', 'salvencid4', 'codcueant', 'codcuencr'
+]);
+
+const CANDIDATOS_RUC = ['ruccedpro', 'ruc', 'rucced', 'ruc_ced', 'identificacion', 'cedula'];
+const CANDIDATOS_NOMBRE = ['nomprove', 'nomprov', 'nompro', 'nomproveedor', 'nombres', 'nombre', 'razonsocial', 'razon_social'];
+
+function ident(valor) {
+  return '"' + String(valor).replace(/"/g, '""') + '"';
+}
+
+async function obtenerMetadatos(client) {
+  const tablas = await client.query(`
+    SELECT table_schema, table_name
+    FROM information_schema.tables
+    WHERE table_type = 'BASE TABLE'
+      AND lower(table_name) = 'proveedores'
+    ORDER BY CASE WHEN table_schema = 'public' THEN 0 ELSE 1 END
+    LIMIT 1
+  `);
+
+  if (!tablas.rows.length) {
+    throw new Error('No existe la tabla proveedores en la base de datos conectada.');
+  }
+
+  const { table_schema: esquema, table_name: tabla } = tablas.rows[0];
+  const columnasResult = await client.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = $1 AND table_name = $2
+    ORDER BY ordinal_position
+  `, [esquema, tabla]);
+
+  const disponibles = columnasResult.rows.map(r => r.column_name);
+  const buscar = candidatos => disponibles.find(col => candidatos.includes(col.toLowerCase()));
+  const colRuc = buscar(CANDIDATOS_RUC);
+  const colNombre = buscar(CANDIDATOS_NOMBRE);
+  const colSaldo = disponibles.find(col => col.toLowerCase() === 'salcuenta');
+
+  if (!colRuc || !colNombre) {
+    throw new Error(
+      `No se encontraron las columnas necesarias en proveedores. RUC: ${colRuc || 'no encontrada'}, nombres: ${colNombre || 'no encontrada'}.`
+    );
+  }
+
+  return { esquema, tabla, disponibles, colRuc, colNombre, colSaldo };
+}
+
+async function obtenerMetadatosCuentasPagar(client) {
+  const tablaResult = await client.query(`
+    SELECT table_schema, table_name
+    FROM information_schema.tables
+    WHERE table_type = 'BASE TABLE'
+      AND table_schema NOT IN ('pg_catalog', 'information_schema')
+      AND regexp_replace(lower(table_name), '[ _-]', '', 'g') = 'cuentaspagar'
+    ORDER BY CASE WHEN table_schema = 'public' THEN 0 ELSE 1 END, table_schema, table_name
+    LIMIT 1
+  `);
+
+  if (!tablaResult.rows.length) return null;
+
+  const { table_schema: esquema, table_name: tabla } = tablaResult.rows[0];
+  const columnas = new Map(
+    (await client.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = $1 AND table_name = $2
+    `, [esquema, tabla])).rows.map(r => [String(r.column_name).toLowerCase(), r.column_name])
+  );
+
+  const requeridas = ['fecinicio', 'fecvencim', 'numfactur', 'valpagpar', 'estpagcue', 'ruccedpro'];
+  if (requeridas.some(campo => !columnas.has(campo))) return null;
+
+  const ref = columnas.get('refcuepagar') || columnas.get('refcuepag') || null;
+  return {
+    tablaSQL: `${ident(esquema)}.${ident(tabla)}`,
+    c: clave => columnas.get(clave),
+    ref
+  };
+}
+
+async function obtenerFacturasPendientes(client, ruc) {
+  const meta = await obtenerMetadatosCuentasPagar(client);
+  if (!meta) return [];
+
+  const referencia = meta.ref ? `cp.${ident(meta.ref)}` : `''`;
+  const result = await client.query(`
+    SELECT
+      cp.${ident(meta.c('fecinicio'))} AS "fecInicio",
+      cp.${ident(meta.c('fecvencim'))} AS "fecVencim",
+      cp.${ident(meta.c('numfactur'))} AS "numFactur",
+      cp.${ident(meta.c('valpagpar'))} AS "valPagPar",
+      ${referencia} AS "refCuePag"
+    FROM ${meta.tablaSQL} cp
+    WHERE CAST(cp.${ident(meta.c('ruccedpro'))} AS text) = $1
+      AND UPPER(TRIM(cp.${ident(meta.c('estpagcue'))}::text)) = 'PENDIENTE'
+    ORDER BY cp.${ident(meta.c('fecvencim'))}, cp.${ident(meta.c('fecinicio'))}, cp.${ident(meta.c('numfactur'))}
+  `, [ruc]);
+
+  return result.rows;
+}
+
+async function proveedores(req, res) {
+  let client;
+  try {
+    client = pool.createDedicatedClient();
+    await client.connect();
+    await client.query('SET statement_timeout = 30000');
+
+    const meta = await obtenerMetadatos(client);
+    const q = String(req.query.q || '').trim();
+    const limite = Math.min(Math.max(Number(req.query.limite) || 500, 1), 2000);
+    const valores = [];
+    let filtro = '';
+
+    if (q) {
+      valores.push(`%${q}%`);
+      const p = `$${valores.length}`;
+      filtro = `WHERE CAST(${ident(meta.colRuc)} AS text) ILIKE ${p} OR CAST(${ident(meta.colNombre)} AS text) ILIKE ${p}`;
+    }
+
+    const result = await client.query(`
+      SELECT
+        CAST(${ident(meta.colRuc)} AS text) AS "ruc",
+        CAST(${ident(meta.colNombre)} AS text) AS "nombres"
+      FROM ${ident(meta.esquema)}.${ident(meta.tabla)}
+      ${filtro}
+      ORDER BY ${ident(meta.colNombre)} ASC NULLS LAST
+      LIMIT ${limite}
+    `, valores);
+
+    return res.json({ total: result.rows.length, proveedores: result.rows });
+  } catch (error) {
+    console.error('[PROVEEDORES] Error consultando proveedores:', error);
+    return res.status(500).json({
+      error: 'Error consultando proveedores.',
+      detail: error.message
+    });
+  } finally {
+    if (client) {
+      try { await client.end(); } catch (error) {
+        console.error('[PROVEEDORES] Error cerrando cliente:', error.message);
+      }
+    }
+  }
+}
+
+async function proveedorDetalle(req, res) {
+  let client;
+  try {
+    const ruc = String(req.params.ruc || '').trim();
+    if (!ruc) return res.status(400).json({ error: 'RUC/Cédula requerido.' });
+
+    client = pool.createDedicatedClient();
+    await client.connect();
+    await client.query('SET statement_timeout = 30000');
+
+    const meta = await obtenerMetadatos(client);
+    const columnasVisibles = meta.disponibles.filter(campo =>
+      !CAMPOS_OCULTOS.has(campo.toLowerCase()) && campo.toLowerCase() !== 'salcuenta'
+    );
+
+    const result = await client.query(`
+      SELECT ${columnasVisibles.map(ident).join(', ')}
+      FROM ${ident(meta.esquema)}.${ident(meta.tabla)}
+      WHERE CAST(${ident(meta.colRuc)} AS text) = $1
+      LIMIT 1
+    `, [ruc]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Proveedor no encontrado.' });
+
+    const proveedor = result.rows[0];
+    const facturasPendientes = await obtenerFacturasPendientes(client, ruc);
+    let saldoCuenta = meta.colSaldo ? Number((await client.query(`
+      SELECT ${ident(meta.colSaldo)}
+      FROM ${ident(meta.esquema)}.${ident(meta.tabla)}
+      WHERE CAST(${ident(meta.colRuc)} AS text) = $1
+      LIMIT 1
+    `, [ruc])).rows[0]?.[meta.colSaldo]) : NaN;
+
+    if (!Number.isFinite(saldoCuenta)) {
+      saldoCuenta = facturasPendientes.reduce((suma, factura) => suma + (Number(factura.valPagPar) || 0), 0);
+    }
+
+    return res.json({
+      proveedor,
+      columnas: columnasVisibles,
+      saldoCuenta,
+      facturasPendientes,
+      totalFacturasPendientes: facturasPendientes.length
+    });
+  } catch (error) {
+    console.error('[PROVEEDORES] Error consultando detalle:', error);
+    return res.status(500).json({
+      error: 'Error consultando detalle del proveedor.',
+      detail: error.message
+    });
+  } finally {
+    if (client) {
+      try { await client.end(); } catch (error) {
+        console.error('[PROVEEDORES] Error cerrando cliente:', error.message);
+      }
+    }
+  }
+}
+
+module.exports = { proveedores, proveedorDetalle };
