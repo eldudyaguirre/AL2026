@@ -1,15 +1,26 @@
 const { Pool } = require('pg');
 const crypto = require('crypto');
 
-const TABLES_CONFIG = process.env.SYNC_TABLES
-  ? process.env.SYNC_TABLES.split(',').map((value) => value.trim()).filter(Boolean)
-  : null;
+function parseTables(value) {
+  if (!value) return [];
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+// Configuración por dirección.
+// Si se usa el modo antiguo SYNC_TABLES, se mantiene LOCAL -> RAILWAY.
+const LOCAL_TO_RAILWAY = parseTables(process.env.SYNC_LOCAL_TO_RAILWAY || process.env.SYNC_TABLES);
+const RAILWAY_TO_LOCAL = parseTables(process.env.SYNC_RAILWAY_TO_LOCAL);
 
 const INTERVAL_MS = Math.max(1000, Number(process.env.SYNC_INTERVAL_MS || 10000));
 const BATCH_SIZE = Math.max(1, Number(process.env.SYNC_BATCH_SIZE || 200));
 
 if (!process.env.LOCAL_DATABASE_URL || !process.env.RAILWAY_DATABASE_URL) {
   console.error('Faltan LOCAL_DATABASE_URL y/o RAILWAY_DATABASE_URL.');
+  process.exit(1);
+}
+
+if (!LOCAL_TO_RAILWAY.length && !RAILWAY_TO_LOCAL.length) {
+  console.error('No hay tablas configuradas. Use SYNC_LOCAL_TO_RAILWAY y/o SYNC_RAILWAY_TO_LOCAL.');
   process.exit(1);
 }
 
@@ -53,19 +64,6 @@ function primaryKeyToken(row, primaryKey) {
   return JSON.stringify(primaryKey.map((column) => normalizeValue(row[column])));
 }
 
-async function getTables(client) {
-  if (TABLES_CONFIG) return TABLES_CONFIG;
-
-  const result = await client.query(`
-    SELECT tablename
-    FROM pg_catalog.pg_tables
-    WHERE schemaname = 'public'
-    ORDER BY tablename
-  `);
-
-  return result.rows.map((row) => row.tablename);
-}
-
 async function getTableSchema(client, table) {
   const columnsResult = await client.query(`
     SELECT
@@ -83,7 +81,7 @@ async function getTableSchema(client, table) {
   `, [table]);
 
   if (!columnsResult.rows.length) {
-    throw new Error(`La tabla local public.${table} no existe.`);
+    throw new Error(`La tabla public.${table} no existe.`);
   }
 
   const primaryKeyResult = await client.query(`
@@ -138,7 +136,7 @@ async function ensureTargetTable(client, table, schema) {
     .join('||');
 
   if (expected !== actual) {
-    throw new Error(`La estructura de public.${table} en Railway no coincide con LOCAL.`);
+    throw new Error(`La estructura de public.${table} en el destino no coincide con el origen.`);
   }
 
   if (!schema.primaryKey.length) {
@@ -163,13 +161,9 @@ async function ensureTargetTable(client, table, schema) {
   }
 }
 
-async function loadTargetRows(client, table, columns) {
+async function loadRows(client, table) {
   const result = await client.query(`SELECT * FROM ${quoteIdentifier(table)}`);
-  const map = new Map();
-  for (const row of result.rows) {
-    map.set(primaryKeyToken(row, columns.primaryKey), rowHash(row, columns.columns));
-  }
-  return map;
+  return result.rows;
 }
 
 async function upsertBatch(client, table, schema, rows) {
@@ -202,15 +196,17 @@ async function upsertBatch(client, table, schema, rows) {
   );
 }
 
-async function deleteMissingRows(client, table, schema, localKeys) {
-  const target = await client.query(`SELECT * FROM ${quoteIdentifier(table)}`);
+async function deleteMissingRows(client, table, schema, sourceKeys) {
+  const targetRows = await loadRows(client, table);
   let deleted = 0;
 
-  for (const row of target.rows) {
+  for (const row of targetRows) {
     const token = primaryKeyToken(row, schema.primaryKey);
-    if (localKeys.has(token)) continue;
+    if (sourceKeys.has(token)) continue;
 
-    const where = schema.primaryKey.map((column, index) => `${quoteIdentifier(column)} IS NOT DISTINCT FROM $${index + 1}`).join(' AND ');
+    const where = schema.primaryKey
+      .map((column, index) => `${quoteIdentifier(column)} IS NOT DISTINCT FROM $${index + 1}`)
+      .join(' AND ');
     const values = schema.primaryKey.map((column) => row[column]);
     const result = await client.query(`DELETE FROM ${quoteIdentifier(table)} WHERE ${where}`, values);
     deleted += result.rowCount;
@@ -219,34 +215,40 @@ async function deleteMissingRows(client, table, schema, localKeys) {
   return deleted;
 }
 
-async function syncTable(local, railway, table) {
-  const schema = await getTableSchema(local, table);
-  await ensureTargetTable(railway, table, schema);
+async function syncDirection(source, target, table, direction) {
+  const sourceSchema = await getTableSchema(source, table);
+  await ensureTargetTable(target, table, sourceSchema);
 
-  const result = await local.query(`SELECT * FROM ${quoteIdentifier(table)}`);
-  const localRows = result.rows;
-  const localKeys = new Set(localRows.map((row) => primaryKeyToken(row, schema.primaryKey)));
-  const targetHashes = await loadTargetRows(railway, table, schema);
+  const sourceRows = await loadRows(source, table);
+  const sourceKeys = new Set(sourceRows.map((row) => primaryKeyToken(row, sourceSchema.primaryKey)));
+  const targetRows = await loadRows(target, table);
+  const targetHashes = new Map(
+    targetRows.map((row) => [
+      primaryKeyToken(row, sourceSchema.primaryKey),
+      rowHash(row, sourceSchema.columns),
+    ])
+  );
 
-  const changedRows = localRows.filter((row) => {
-    const key = primaryKeyToken(row, schema.primaryKey);
-    return targetHashes.get(key) !== rowHash(row, schema.columns);
+  const changedRows = sourceRows.filter((row) => {
+    const key = primaryKeyToken(row, sourceSchema.primaryKey);
+    return targetHashes.get(key) !== rowHash(row, sourceSchema.columns);
   });
 
   for (let offset = 0; offset < changedRows.length; offset += BATCH_SIZE) {
     await upsertBatch(
-      railway,
+      target,
       table,
-      schema,
+      sourceSchema,
       changedRows.slice(offset, offset + BATCH_SIZE)
     );
   }
 
-  const deleted = await deleteMissingRows(railway, table, schema, localKeys);
+  const deleted = await deleteMissingRows(target, table, sourceSchema, sourceKeys);
 
   return {
+    direction,
     table,
-    local: localRows.length,
+    rows: sourceRows.length,
     changed: changedRows.length,
     deleted,
   };
@@ -258,27 +260,50 @@ async function syncOnce() {
   const railway = await railwayPool.connect();
 
   try {
-    await local.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
-    const tables = await getTables(local);
-
-    await railway.query('BEGIN');
+    // Cada dirección usa una transacción independiente. Así una tabla con
+    // problemas no deja cambios parciales dentro de su propia dirección.
     const results = [];
 
-    for (const table of tables) {
-      results.push(await syncTable(local, railway, table));
+    if (LOCAL_TO_RAILWAY.length) {
+      await local.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+      await railway.query('BEGIN');
+
+      try {
+        for (const table of LOCAL_TO_RAILWAY) {
+          results.push(await syncDirection(local, railway, table, 'LOCAL→RAILWAY'));
+        }
+        await railway.query('COMMIT');
+        await local.query('COMMIT');
+      } catch (error) {
+        try { await local.query('ROLLBACK'); } catch (_) {}
+        try { await railway.query('ROLLBACK'); } catch (_) {}
+        throw new Error(`LOCAL→RAILWAY: ${error.message}`);
+      }
     }
 
-    await railway.query('COMMIT');
-    await local.query('COMMIT');
+    if (RAILWAY_TO_LOCAL.length) {
+      await railway.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+      await local.query('BEGIN');
+
+      try {
+        for (const table of RAILWAY_TO_LOCAL) {
+          results.push(await syncDirection(railway, local, table, 'RAILWAY→LOCAL'));
+        }
+        await local.query('COMMIT');
+        await railway.query('COMMIT');
+      } catch (error) {
+        try { await railway.query('ROLLBACK'); } catch (_) {}
+        try { await local.query('ROLLBACK'); } catch (_) {}
+        throw new Error(`RAILWAY→LOCAL: ${error.message}`);
+      }
+    }
 
     const summary = results
-      .map((item) => `${item.table}=${item.local} filas, ${item.changed} cambios, ${item.deleted} eliminadas`)
+      .map((item) => `${item.direction} ${item.table}=${item.rows} filas, ${item.changed} cambios, ${item.deleted} eliminadas`)
       .join(' | ');
 
     console.log(`[SYNC] OK en ${Date.now() - started} ms :: ${summary}`);
   } catch (error) {
-    try { await local.query('ROLLBACK'); } catch (_) {}
-    try { await railway.query('ROLLBACK'); } catch (_) {}
     console.error(`[SYNC] ERROR después de ${Date.now() - started} ms: ${error.message}`);
   } finally {
     local.release();
@@ -298,7 +323,8 @@ async function tick() {
   }
 }
 
-console.log(`[SYNC] Tablas: ${TABLES_CONFIG ? TABLES_CONFIG.join(', ') : 'TODAS las tablas de public'}`);
+console.log(`[SYNC] LOCAL→RAILWAY: ${LOCAL_TO_RAILWAY.length ? LOCAL_TO_RAILWAY.join(', ') : 'ninguna'}`);
+console.log(`[SYNC] RAILWAY→LOCAL: ${RAILWAY_TO_LOCAL.length ? RAILWAY_TO_LOCAL.join(', ') : 'ninguna'}`);
 console.log(`[SYNC] Intervalo: ${INTERVAL_MS} ms`);
 console.log(`[SYNC] Lote: ${BATCH_SIZE} filas`);
 
