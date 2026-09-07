@@ -26,15 +26,15 @@
     <nav aria-label="Menú principal">
       <ul class="menu">
         <li><a href="/html/frmmenprinci.html"><i class="fi fi-rr-home icon"></i><span>Inicio</span></a></li>
-        <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-feather icon"></i><span>Avícola</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#">Granja 1</a></li><li><a href="#">Granja 2</a></li><li><a href="#">Pesaje</a></li><li><a href="#">Reportes</a></li><li><a href="#">Parámetros</a></li></ul></li>
-        <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-pig icon"></i><span>Porcina</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#">Granja 1</a></li><li><a href="#">Granja 2</a></li><li><a href="#">Pesaje</a></li><li><a href="#">Reportes</a></li><li><a href="#">Parámetros</a></li></ul></li>
-        <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#">Inventario</a></li><li><a href="#">Items</a></li><li><a href="#">Producción</a></li><li><a href="#">Órdenes de compra</a></li></ul></li>
+        <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-feather icon"></i><span>Avícola</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#resumen-avicola">Resumen</a></li><li><a href="#granja1">Granja 1</a></li><li><a href="#granja2">Granja 2</a></li><li><a href="#pesaje-avicola">Pesaje</a></li><li><a href="#reportes-avicola">Reportes</a></li><li><a href="#parametros-avicola">Parámetros</a></li></ul></li>
+        <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-pig icon"></i><span>Porcina</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#resumen-porcina">Resumen</a></li><li><a href="#granja1-porcina">Granja 1</a></li><li><a href="#granja2-porcina">Granja 2</a></li><li><a href="#pesaje-porcina">Pesaje</a></li><li><a href="#reportes-porcina">Reportes</a></li><li><a href="#parametros-porcina">Parámetros</a></li></ul></li>
+        <li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="#resumen-fabrica">Resumen</a></li><li><a href="#inventario-fabrica">Inventario</a></li><li><a href="#items-fabrica">Items</a></li><li><a href="#produccion-fabrica">Producción</a></li><li><a href="#ordenes-compra-fabrica">Órdenes de compra</a></li></ul></li>
         <li class="menu-group open">
           <button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="true"><i class="fi fi-rr-briefcase icon"></i><span>Administrativo</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button>
           <ul class="submenu">
             <li><a href="/html/ResumenAdm.html">Resumen</a></li>
             <li class="submenu-separator"></li>
-            <li><a href="#">Proveedores</a></li>
+            <li><a href="/html/Proveedores.html">Proveedores</a></li>
             <li><a href="/html/FrmCompras.html">Compras</a></li>
             <li><a href="/html/FrmCuePagar.html">Cuentas por pagar</a></li>
             <li class="submenu-separator"></li>
@@ -44,11 +44,11 @@
             <li class="submenu-separator"></li>
             <li><a href="/html/FrmBalGeneral.html">Balance General</a></li>
             <li class="submenu-separator"></li>
-            <li><a href="#">Trabajadores</a></li>
-            <li><a href="#">Rol de Pagos</a></li>
+            <li><a href="#trabajadores">Trabajadores</a></li>
+            <li><a href="#roles">Rol de Pagos</a></li>
           </ul>
         </li>
-        <li><a href="#"><i class="fi fi-rr-settings icon"></i><span>Configuración</span></a></li>
+        <li><a href="#configuracion"><i class="fi fi-rr-settings icon"></i><span>Configuración</span></a></li>
       </ul>
     </nav>
     <div class="sidebar-bottom"><button class="logout-link" onclick="cerrarSesion()"><i class="fi fi-rr-sign-out-alt icon"></i><span>Cerrar sesión</span></button></div>
