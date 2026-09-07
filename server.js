@@ -8,41 +8,11 @@ const cueCobrarRoutes = require('./app/routes/cuecobrar.routes');
 const balGeneralRoutes = require('./app/routes/balgeneral.routes');
 const trabajadoresRoutes = require('./app/routes/trabajadores.routes');
 const clientesRoutes = require('./app/routes/clientes.routes');
+const proveedoresRoutes = require('./app/routes/proveedores.routes');
 const systemController = require('./app/controllers/system.controller');
 const pool = require('./app/database/postgres');
-
 const app = express();
 const port = Number(process.env.PORT || 3000);
-
 app.use(express.json());
-
-app.get('/', (_req, res) => res.redirect('/html/login.html'));
-app.get('/login.html', (_req, res) => res.redirect('/html/login.html'));
-app.get('/frmmenprinci.html', (_req, res) => res.redirect('/html/frmmenprinci.html'));
-app.get('/FrmCueCobrar.html', (_req, res) => res.redirect('/html/FrmCueCobrar.html'));
-app.get('/FrmBalGeneral.html', (_req, res) => res.redirect('/html/FrmBalGeneral.html'));
-app.get('/ResumenAdm.html', (_req, res) => res.redirect('/html/ResumenAdm.html'));
-app.get('/Clientes.html', (_req, res) => res.redirect('/html/Clientes.html'));
-
-app.use('/api', authRoutes);
-app.use('/api', systemRoutes);
-app.use('/api', comprasRoutes);
-app.use('/api', ventasRoutes);
-app.use('/api', cuePagarRoutes);
-app.use('/api', cueCobrarRoutes);
-app.use('/api', balGeneralRoutes);
-app.use('/api', trabajadoresRoutes);
-app.use('/api', clientesRoutes);
-
-app.get('/health', systemController.health);
-
-app.use(express.static('public'));
-
-app.listen(port, '0.0.0.0', () => {
-  console.log(`AL2026 API listening on port ${port}`);
-});
-
-process.on('SIGTERM', async () => {
-  await pool.end();
-  process.exit(0);
-});
+app.get('/',(_req,res)=>res.redirect('/html/login.html'));app.get('/login.html',(_req,res)=>res.redirect('/html/login.html'));app.get('/frmmenprinci.html',(_req,res)=>res.redirect('/html/frmmenprinci.html'));app.get('/FrmCueCobrar.html',(_req,res)=>res.redirect('/html/FrmCueCobrar.html'));app.get('/FrmBalGeneral.html',(_req,res)=>res.redirect('/html/FrmBalGeneral.html'));app.get('/ResumenAdm.html',(_req,res)=>res.redirect('/html/ResumenAdm.html'));app.get('/Clientes.html',(_req,res)=>res.redirect('/html/Clientes.html'));app.get('/Proveedores.html',(_req,res)=>res.redirect('/html/Proveedores.html'));
+app.use('/api',authRoutes);app.use('/api',systemRoutes);app.use('/api',comprasRoutes);app.use('/api',ventasRoutes);app.use('/api',cuePagarRoutes);app.use('/api',cueCobrarRoutes);app.use('/api',balGeneralRoutes);app.use('/api',trabajadoresRoutes);app.use('/api',clientesRoutes);app.use('/api',proveedoresRoutes);app.get('/health',systemController.health);app.use(express.static('public'));app.listen(port,'0.0.0.0',()=>console.log(`AL2026 API listening on port ${port}`));process.on('SIGTERM',async()=>{await pool.end();process.exit(0);});
