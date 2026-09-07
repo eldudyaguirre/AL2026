@@ -4,15 +4,21 @@ function cerrarMenu(){document.getElementById('sidebar').classList.remove('open'
 function toggleSubmenu(button){
   const grupo=button.closest('.menu-group');
   const estabaAbierto=grupo.classList.contains('open');
-  document.querySelectorAll('.menu-group.open').forEach(item=>{
-    item.classList.remove('open');
-    const parent=item.querySelector('.menu-parent');
-    if(parent) parent.setAttribute('aria-expanded','false');
-  });
-  if(!estabaAbierto){
-    grupo.classList.add('open');
-    button.setAttribute('aria-expanded','true');
+  if(estabaAbierto){
+    grupo.classList.remove('open');
+    button.setAttribute('aria-expanded','false');
+    return;
   }
+  const nivel=grupo.parentElement;
+  nivel.querySelectorAll(':scope > .menu-group.open').forEach(item=>{
+    if(item!==grupo){
+      item.classList.remove('open');
+      const parent=item.querySelector(':scope > .menu-parent');
+      if(parent) parent.setAttribute('aria-expanded','false');
+    }
+  });
+  grupo.classList.add('open');
+  button.setAttribute('aria-expanded','true');
 }
 
 async function cargarDashboard(){
@@ -22,15 +28,11 @@ async function cargarDashboard(){
     const data=await response.json();
     const usuario=data.usuario||'';
     const nombre=data.nombre||usuario||'-';
-
-    // Estos elementos pueden no existir en la nueva pantalla principal.
-    // No deben provocar un error que termine expulsando al usuario.
     const profileName=document.getElementById('profile-name');
     const profileUser=document.getElementById('profile-user');
     const nombreElement=document.getElementById('nombre');
     const apiValue=document.getElementById('api-value');
     const dbValue=document.getElementById('db-value');
-
     if(profileName) profileName.textContent=usuario;
     if(profileUser) profileUser.textContent=nombre;
     if(nombreElement) nombreElement.textContent=nombre;
