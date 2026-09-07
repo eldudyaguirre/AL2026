@@ -2,6 +2,16 @@ const pool = require('../database/postgres');
 
 const CANDIDATOS_RUC = ['ruccedcli', 'ruc', 'rucced', 'ruc_ced', 'identificacion', 'cedula'];
 const CANDIDATOS_NOMBRE = ['nomclient', 'nomcli', 'nombres', 'nombre', 'razonsocial', 'razon_social'];
+const CAMPOS_OCULTOS = new Set([
+  'tipocli', 'procli', 'estado', 'antpersonal', 'limcredit', 'salantici', 'salnotcre',
+  'fecultpag', 'numdiacre', 'codcuecon', 'porretfuebie', 'porretivabie', 'porretfueser',
+  'porretivaser', 'salvencid1', 'salvencid2', 'salvencid3', 'salvencid4', 'codcueant',
+  'codcuencr'
+]);
+
+function ident(valor) {
+  return '"' + String(valor).replace(/"/g, '""') + '"';
+}
 
 async function obtenerMetadatos(client) {
   const tablas = await client.query(`
@@ -27,16 +37,68 @@ async function obtenerMetadatos(client) {
   const buscar = candidatos => disponibles.find(col => candidatos.includes(col.toLowerCase()));
   const colRuc = buscar(CANDIDATOS_RUC);
   const colNombre = buscar(CANDIDATOS_NOMBRE);
+  const colSaldo = disponibles.find(col => col.toLowerCase() === 'salcuenta');
 
   if (!colRuc || !colNombre) {
     throw new Error(`No se encontraron las columnas necesarias en clientes. RUC: ${colRuc || 'no encontrada'}, nombres: ${colNombre || 'no encontrada'}.`);
   }
 
-  return { esquema, tabla, disponibles, colRuc, colNombre };
+  return { esquema, tabla, disponibles, colRuc, colNombre, colSaldo };
 }
 
-function ident(valor) {
-  return '"' + String(valor).replace(/"/g, '""') + '"';
+async function obtenerMetadatosCuentasCobrar(client) {
+  const tablaResult = await client.query(`
+    SELECT table_schema, table_name
+    FROM information_schema.tables
+    WHERE table_type = 'BASE TABLE'
+      AND table_schema NOT IN ('pg_catalog', 'information_schema')
+      AND regexp_replace(lower(table_name), '[ _-]', '', 'g') = 'cuentascobrar'
+    ORDER BY CASE WHEN table_schema = 'public' THEN 0 ELSE 1 END, table_schema, table_name
+    LIMIT 1
+  `);
+
+  if (!tablaResult.rows.length) return null;
+
+  const { table_schema: esquema, table_name: tabla } = tablaResult.rows[0];
+  const columnasResult = await client.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = $1 AND table_name = $2
+  `, [esquema, tabla]);
+  const columnas = new Map(columnasResult.rows.map(r => [String(r.column_name).toLowerCase(), r.column_name]));
+
+  const requeridas = ['fecinicio', 'fecvencim', 'numfactur', 'valpagpar', 'estpagcue', 'refcuecob', 'ruccedcli'];
+  if (requeridas.some(campo => !columnas.has(campo))) return null;
+
+  const c = clave => ident(columnas.get(clave));
+  return {
+    esquema,
+    tabla,
+    c,
+    tablaSQL: `${ident(esquema)}.${ident(tabla)}`
+  };
+}
+
+async function obtenerFacturasPendientes(client, metaClientes, ruc) {
+  const metaCobrar = await obtenerMetadatosCuentasCobrar(client);
+  if (!metaCobrar) return [];
+
+  const { c, tablaSQL } = metaCobrar;
+  const sql = `
+    SELECT
+      cp.${c('fecinicio')} AS "fecInicio",
+      cp.${c('fecvencim')} AS "fecVencim",
+      cp.${c('numfactur')} AS "numFactur",
+      cp.${c('valpagpar')} AS "valPagPar",
+      cp.${c('refcuecob')} AS "refCueCob"
+    FROM ${tablaSQL} cp
+    WHERE CAST(cp.${c('ruccedcli')} AS text) = $1
+      AND UPPER(TRIM(cp.${c('estpagcue')}::text)) = 'PENDIENTE'
+    ORDER BY cp.${c('fecvencim')}, cp.${c('fecinicio')}, cp.${c('numfactur')}
+  `;
+
+  const result = await client.query(sql, [ruc]);
+  return result.rows;
 }
 
 async function clientes(req, res) {
@@ -91,7 +153,8 @@ async function clienteDetalle(req, res) {
     await client.query('SET statement_timeout = 30000');
 
     const meta = await obtenerMetadatos(client);
-    const columnas = meta.disponibles.map(ident).join(', ');
+    const columnasVisibles = meta.disponibles.filter(campo => !CAMPOS_OCULTOS.has(campo.toLowerCase()));
+    const columnas = columnasVisibles.map(ident).join(', ');
     const sql = `
       SELECT ${columnas}
       FROM ${ident(meta.esquema)}.${ident(meta.tabla)}
@@ -102,7 +165,21 @@ async function clienteDetalle(req, res) {
     const result = await client.query(sql, [ruc]);
     if (!result.rows.length) return res.status(404).json({ error: 'Cliente no encontrado.' });
 
-    return res.json({ cliente: result.rows[0], columnas: meta.disponibles });
+    const cliente = result.rows[0];
+    const facturasPendientes = await obtenerFacturasPendientes(client, meta, ruc);
+
+    let saldoCuenta = meta.colSaldo ? Number(cliente[meta.colSaldo]) : NaN;
+    if (!Number.isFinite(saldoCuenta)) {
+      saldoCuenta = facturasPendientes.reduce((suma, factura) => suma + (Number(factura.valPagPar) || 0), 0);
+    }
+
+    return res.json({
+      cliente,
+      columnas: columnasVisibles,
+      saldoCuenta,
+      facturasPendientes,
+      totalFacturasPendientes: facturasPendientes.length
+    });
   } catch (error) {
     console.error('[CLIENTES] Error consultando detalle:', error);
     return res.status(500).json({ error: 'Error consultando detalle del cliente.', detail: error.message });
