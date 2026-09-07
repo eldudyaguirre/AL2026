@@ -7,7 +7,7 @@ const CAMPOS_OCULTOS = new Set([
 ]);
 
 const CANDIDATOS_RUC = ['ruccedpro', 'ruc', 'rucced', 'ruc_ced', 'identificacion', 'cedula'];
-const CANDIDATOS_NOMBRE = ['nomprove', 'nomprov', 'nompro', 'nomproveedor', 'nombres', 'nombre', 'razonsocial', 'razon_social'];
+const CANDIDATOS_NOMBRE = ['nomprovee', 'nomprove', 'nomprov', 'nompro', 'nomproveedor', 'nombres', 'nombre', 'razonsocial', 'razon_social'];
 
 function ident(valor) {
   return '"' + String(valor).replace(/"/g, '""') + '"';
