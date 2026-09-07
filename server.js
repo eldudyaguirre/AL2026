@@ -54,6 +54,11 @@ app.get('/html/:archivo.html',(req,res,next)=>{
     for(const [origen,destino] of Object.entries(menuLinkMap)){
       html=html.split(`href="${origen}"`).join(`href="${destino}"`);
     }
+    // Agregar Balance de Resultados debajo de Balance General en todos los menus que aún no lo tengan.
+    if(!html.includes('href="/html/FrmBalResul.html"')){
+      const balanceGeneralLi=/<li><a href="\/html\/FrmBalGeneral\.html"[^>]*>Balance General<\/a><\/li>/;
+      html=html.replace(balanceGeneralLi,match=>`${match}<li><a href="/html/FrmBalResul.html">Balance de Resultados</a></li>`);
+    }
     res.type('html').send(html);
   }catch(error){next(error);}
 });
