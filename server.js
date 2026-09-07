@@ -7,6 +7,7 @@ const cuePagarRoutes = require('./app/routes/cuepagar.routes');
 const cueCobrarRoutes = require('./app/routes/cuecobrar.routes');
 const balGeneralRoutes = require('./app/routes/balgeneral.routes');
 const trabajadoresRoutes = require('./app/routes/trabajadores.routes');
+const clientesRoutes = require('./app/routes/clientes.routes');
 const systemController = require('./app/controllers/system.controller');
 const pool = require('./app/database/postgres');
 
@@ -21,6 +22,7 @@ app.get('/frmmenprinci.html', (_req, res) => res.redirect('/html/frmmenprinci.ht
 app.get('/FrmCueCobrar.html', (_req, res) => res.redirect('/html/FrmCueCobrar.html'));
 app.get('/FrmBalGeneral.html', (_req, res) => res.redirect('/html/FrmBalGeneral.html'));
 app.get('/ResumenAdm.html', (_req, res) => res.redirect('/html/ResumenAdm.html'));
+app.get('/Clientes.html', (_req, res) => res.redirect('/html/Clientes.html'));
 
 app.use('/api', authRoutes);
 app.use('/api', systemRoutes);
@@ -30,6 +32,7 @@ app.use('/api', cuePagarRoutes);
 app.use('/api', cueCobrarRoutes);
 app.use('/api', balGeneralRoutes);
 app.use('/api', trabajadoresRoutes);
+app.use('/api', clientesRoutes);
 
 app.get('/health', systemController.health);
 
