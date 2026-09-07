@@ -1,7 +1,9 @@
 const pool = require('../database/postgres');
 
 const CAMPOS_OCULTOS = new Set([
-  'tipopro', 'tipprov', 'estado', 'antpersonal', 'antperson', 'limcredit', 'salantici', 'salnotcre',
+  'tipopro', 'tipprov', 'tipidprov', 'areprovee', 'numserfac', 'codcuefuebie', 'codcueivabie',
+  'codcuefueser', 'codcueivaser', 'infespeci', 'numautori', 'feccaduci', 'chependie',
+  'creadopor', 'creadoen', 'estado', 'antpersonal', 'antperson', 'limcredit', 'salantici', 'salnotcre',
   'fecultpag', 'numdiacre', 'codcuecon', 'porretfuebie', 'porretivabie', 'porretfueser',
   'porretivaser', 'salvencid1', 'salvencid2', 'salvencid3', 'salvencid4', 'codcueant', 'codcuencr'
 ]);
@@ -56,7 +58,7 @@ async function obtenerMetadatosCuentasPagar(client) {
     FROM information_schema.tables
     WHERE table_type = 'BASE TABLE'
       AND table_schema NOT IN ('pg_catalog', 'information_schema')
-      AND regexp_replace(lower(table_name), '[ _-]', '', 'g') = 'cuentaspagar'
+      AND regexp_replace(lower(table_name), '[ _-]', '', 'g') = 'cuentapagar'
     ORDER BY CASE WHEN table_schema = 'public' THEN 0 ELSE 1 END, table_schema, table_name
     LIMIT 1
   `);
