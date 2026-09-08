@@ -40,10 +40,10 @@ const railwayPool = new Pool({
 });
 
 function quoteIdentifier(value) {
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
+  if (!/^[\p{L}_][\p{L}\p{N}_$]*$/u.test(value)) {
     throw new Error(`Identificador inválido: ${value}`);
   }
-  return `"${value}"`;
+  return `"${value.replace(/"/g, '""')}"`;
 }
 
 function normalizeValue(value) {
