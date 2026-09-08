@@ -56,7 +56,34 @@ const menuLinkMap={
   '#configuracion':'/html/ResumenAdm.html#configuracion'
 };
 
-const fabricaMenu=`<li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/ResumenFab.html">Resumen</a></li><li><a href="#inventario-fabrica">Inventario</a></li><li><a href="#items-fabrica">Items</a></li><li><a href="#produccion-fabrica">Producción</a></li><li><a href="#ordenes-compra-fabrica">Órdenes de compra</a></li></ul></li>`;
+const fabricaMenu=`<li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/ResumenFab.html">Resumen</a></li><li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><span>Inventario</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/ResumenFab.html#materia-prima">Materia Prima</a></li><li><a href="/html/ResumenFab.html#producto-final">Producto Final</a></li></ul></li><li><a href="/html/ResumenFab.html#items-fabrica">Items</a></li><li><a href="/html/ResumenFab.html#produccion-fabrica">Producción</a></li><li><a href="/html/ResumenFab.html#ordenes-compra-fabrica">Órdenes de compra</a></li></ul></li>`;
+
+function reemplazarMenuFabrica(html){
+  const inicio=html.search(/<li class="menu-group(?: open)?">\s*<button[^>]*>\s*<i[^>]*><\/i>\s*<span>Fábrica<\/span>/i);
+  if(inicio<0) return html;
+  const ulInicio=html.indexOf('<ul class="submenu">',inicio);
+  if(ulInicio<0) return html;
+  let pos=ulInicio;
+  let profundidad=0;
+  while(pos<html.length){
+    const siguienteUl=html.indexOf('<ul',pos);
+    const siguienteCierre=html.indexOf('</ul>',pos);
+    if(siguienteCierre<0) return html;
+    if(siguienteUl>=0 && siguienteUl<siguienteCierre){
+      profundidad++;
+      pos=siguienteUl+3;
+    }else{
+      profundidad--;
+      pos=siguienteCierre+5;
+      if(profundidad===0){
+        const finLi=html.indexOf('</li>',pos);
+        if(finLi<0) return html;
+        return html.slice(0,inicio)+fabricaMenu+html.slice(finLi+5);
+      }
+    }
+  }
+  return html;
+}
 
 app.get('/html/:archivo.html',(req,res,next)=>{
   const archivo=req.params.archivo;
@@ -68,10 +95,7 @@ app.get('/html/:archivo.html',(req,res,next)=>{
     for(const [origen,destino] of Object.entries(menuLinkMap)){
       html=html.split(`href="${origen}"`).join(`href="${destino}"`);
     }
-    if(archivo!=='frmmenprinci'){
-      const fabricaRegex=/<li class="menu-group(?: open)?"><button[^>]*>\s*<i[^>]*><\/i>\s*<span>Fábrica<\/span>[\s\S]*?<\/button><ul class="submenu">[\s\S]*?<\/ul><\/li>/;
-      html=html.replace(fabricaRegex,fabricaMenu);
-    }
+    html=reemplazarMenuFabrica(html);
     if(!html.includes('href="/html/FrmBalResul.html"')){
       const balanceGeneralLi=/<li><a href="\/html\/FrmBalGeneral\.html"[^>]*>Balance General<\/a><\/li>/;
       html=html.replace(balanceGeneralLi,match=>`${match}<li><a href="/html/FrmBalResul.html">Balance de Resultados</a></li>`);
