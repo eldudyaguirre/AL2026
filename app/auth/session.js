@@ -44,12 +44,18 @@ function getSession(req) {
   }
 }
 
+function normalizarSegapp(valor) {
+  const segapp = String(valor || '').trim().toUpperCase();
+  if (segapp === 'PORCINO') return 'PORCINA';
+  return segapp;
+}
+
 function createSession(user) {
   return crearToken({
     usuario: user.usrname,
     nombre: user.nomusuari,
     s0100: user.s0100,
-    segapp: String(user.segapp || '').trim().toUpperCase(),
+    segapp: normalizarSegapp(user.segapp),
     createdAt: Date.now(),
   });
 }
@@ -72,11 +78,11 @@ function requireSession(req, res, next) {
 }
 
 function requireSegapp(modulo) {
-  const permitido = String(modulo || '').trim().toUpperCase();
+  const permitido = normalizarSegapp(modulo);
   return (req, res, next) => {
     const session = getSession(req);
     if (!session) return res.status(401).json({ error: 'No autenticado.' });
-    const segapp = String(session.segapp || '').trim().toUpperCase();
+    const segapp = normalizarSegapp(session.segapp);
     if (segapp !== 'ADMINISTRATIVO' && segapp !== permitido) {
       return res.status(403).json({ error: 'No tiene permisos para este módulo.' });
     }
