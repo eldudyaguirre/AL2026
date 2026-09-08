@@ -19,6 +19,7 @@ const port = Number(process.env.PORT || 3000);
 app.use(express.json());
 
 const loginPath=path.join(__dirname,'public','html','login.html');
+const menuSourcePath=path.join(__dirname,'public','html','frmmenprinci.html');
 app.get('/',(_req,res)=>res.sendFile(loginPath));
 app.get('/login.html',(_req,res)=>res.sendFile(loginPath));
 app.get('/frmmenprinci.html',(_req,res)=>res.redirect('/html/frmmenprinci.html'));
@@ -56,33 +57,16 @@ const menuLinkMap={
   '#configuracion':'/html/ResumenAdm.html#configuracion'
 };
 
-const fabricaMenu=`<li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/ResumenFab.html">Resumen</a></li><li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><span>Inventario</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/ResumenFab.html#materia-prima">Materia Prima</a></li><li><a href="/html/ResumenFab.html#producto-final">Producto Final</a></li></ul></li><li><a href="/html/ResumenFab.html#items-fabrica">Items</a></li><li><a href="/html/ResumenFab.html#produccion-fabrica">Producción</a></li><li><a href="/html/ResumenFab.html#ordenes-compra-fabrica">Órdenes de compra</a></li></ul></li>`;
-
-function reemplazarMenuFabrica(html){
-  const inicio=html.search(/<li class="menu-group(?: open)?">\s*<button[^>]*>\s*<i[^>]*><\/i>\s*<span>Fábrica<\/span>/i);
-  if(inicio<0) return html;
-  const ulInicio=html.indexOf('<ul class="submenu">',inicio);
-  if(ulInicio<0) return html;
-  let pos=ulInicio;
-  let profundidad=0;
-  while(pos<html.length){
-    const siguienteUl=html.indexOf('<ul',pos);
-    const siguienteCierre=html.indexOf('</ul>',pos);
-    if(siguienteCierre<0) return html;
-    if(siguienteUl>=0 && siguienteUl<siguienteCierre){
-      profundidad++;
-      pos=siguienteUl+3;
-    }else{
-      profundidad--;
-      pos=siguienteCierre+5;
-      if(profundidad===0){
-        const finLi=html.indexOf('</li>',pos);
-        if(finLi<0) return html;
-        return html.slice(0,inicio)+fabricaMenu+html.slice(finLi+5);
-      }
-    }
+function obtenerMenuOriginal(){
+  const origen=fs.readFileSync(menuSourcePath,'utf8');
+  const inicio=origen.indexOf('<nav');
+  const fin=origen.indexOf('</nav>',inicio);
+  if(inicio<0||fin<0) throw new Error('No se encontró el menú original en frmmenprinci.html');
+  let nav=origen.slice(inicio,fin+6);
+  for(const [origenLink,destino] of Object.entries(menuLinkMap)){
+    nav=nav.split(`href="${origenLink}"`).join(`href="${destino}"`);
   }
-  return html;
+  return nav;
 }
 
 app.get('/html/:archivo.html',(req,res,next)=>{
@@ -92,10 +76,15 @@ app.get('/html/:archivo.html',(req,res,next)=>{
   if(archivo.toLowerCase()==='login') return res.sendFile(filePath);
   try{
     let html=fs.readFileSync(filePath,'utf8');
-    for(const [origen,destino] of Object.entries(menuLinkMap)){
-      html=html.split(`href="${origen}"`).join(`href="${destino}"`);
+    if(archivo!=='frmmenprinci'){
+      const menuOriginal=obtenerMenuOriginal();
+      const inicio=html.indexOf('<nav');
+      const fin=html.indexOf('</nav>',inicio);
+      if(inicio>=0&&fin>=0) html=html.slice(0,inicio)+menuOriginal+html.slice(fin+6);
     }
-    html=reemplazarMenuFabrica(html);
+    for(const [origenLink,destino] of Object.entries(menuLinkMap)){
+      html=html.split(`href="${origenLink}"`).join(`href="${destino}"`);
+    }
     if(!html.includes('href="/html/FrmBalResul.html"')){
       const balanceGeneralLi=/<li><a href="\/html\/FrmBalGeneral\.html"[^>]*>Balance General<\/a><\/li>/;
       html=html.replace(balanceGeneralLi,match=>`${match}<li><a href="/html/FrmBalResul.html">Balance de Resultados</a></li>`);
