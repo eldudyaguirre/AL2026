@@ -68,7 +68,8 @@ async function getTableSchema(client, table) {
   const columnsResult = await client.query(`
     SELECT
       a.attname AS column_name,
-      format_type(a.atttypid, a.atttypmod) AS data_type
+      format_type(a.atttypid, a.atttypmod) AS data_type,
+      a.attnotnull AS not_null
     FROM pg_attribute a
     JOIN pg_class c ON c.oid = a.attrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -105,18 +106,12 @@ async function getTableSchema(client, table) {
   };
 }
 
-async function ensureTargetTable(client, table, schema) {
-  const tableSql = quoteIdentifier(table);
-  const columnSql = schema.columns
-    .map((column) => `${quoteIdentifier(column.column_name)} ${column.data_type}`)
-    .join(',\n');
-
-  await client.query(`CREATE TABLE IF NOT EXISTS ${tableSql} (${columnSql})`);
-
-  const targetColumns = await client.query(`
+async function getTargetColumns(client, table) {
+  const result = await client.query(`
     SELECT
       a.attname AS column_name,
-      format_type(a.atttypid, a.atttypmod) AS data_type
+      format_type(a.atttypid, a.atttypmod) AS data_type,
+      a.attnotnull AS not_null
     FROM pg_attribute a
     JOIN pg_class c ON c.oid = a.attrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -128,15 +123,49 @@ async function ensureTargetTable(client, table, schema) {
     ORDER BY a.attnum
   `, [table]);
 
-  const expected = schema.columns
-    .map((column) => `${column.column_name}|${column.data_type}`)
-    .join('||');
-  const actual = targetColumns.rows
-    .map((column) => `${column.column_name}|${column.data_type}`)
-    .join('||');
+  return result.rows;
+}
 
-  if (expected !== actual) {
-    throw new Error(`La estructura de public.${table} en el destino no coincide con el origen.`);
+async function ensureTargetTable(client, table, schema) {
+  const tableSql = quoteIdentifier(table);
+  const columnSql = schema.columns
+    .map((column) => `${quoteIdentifier(column.column_name)} ${column.data_type}`)
+    .join(',\n');
+
+  await client.query(`CREATE TABLE IF NOT EXISTS ${tableSql} (${columnSql})`);
+
+  let targetColumns = await getTargetColumns(client, table);
+  const targetByName = new Map(targetColumns.map((column) => [column.column_name, column]));
+
+  // Agrega columnas nuevas que existan en el origen y falten en el destino.
+  // Se agregan inicialmente como NULL para permitir que las filas existentes
+  // reciban sus valores durante el UPSERT. Las restricciones NOT NULL del
+  // origen se aplican después de sincronizar los datos.
+  for (const sourceColumn of schema.columns) {
+    const targetColumn = targetByName.get(sourceColumn.column_name);
+
+    if (!targetColumn) {
+      await client.query(
+        `ALTER TABLE ${tableSql} ADD COLUMN ${quoteIdentifier(sourceColumn.column_name)} ${sourceColumn.data_type}`
+      );
+      console.log(`[SYNC] Columna nueva en ${table}: ${sourceColumn.column_name} ${sourceColumn.data_type}`);
+      continue;
+    }
+
+    if (targetColumn.data_type !== sourceColumn.data_type) {
+      throw new Error(
+        `La columna ${sourceColumn.column_name} de public.${table} tiene tipo diferente en el destino: ` +
+        `${targetColumn.data_type} != ${sourceColumn.data_type}.`
+      );
+    }
+  }
+
+  targetColumns = await getTargetColumns(client, table);
+  const targetNames = new Set(targetColumns.map((column) => column.column_name));
+  const missingColumns = schema.columns.filter((column) => !targetNames.has(column.column_name));
+
+  if (missingColumns.length) {
+    throw new Error(`No fue posible crear todas las columnas nuevas de public.${table}.`);
   }
 
   if (!schema.primaryKey.length) {
@@ -158,6 +187,23 @@ async function ensureTargetTable(client, table, schema) {
     await client.query(
       `ALTER TABLE ${tableSql} ADD CONSTRAINT ${quoteIdentifier(constraintName)} PRIMARY KEY (${schema.primaryKey.map(quoteIdentifier).join(', ')})`
     );
+  }
+}
+
+async function applySourceNotNullConstraints(client, table, schema) {
+  const tableSql = quoteIdentifier(table);
+
+  for (const column of schema.columns) {
+    if (!column.not_null || schema.primaryKey.includes(column.column_name)) continue;
+
+    const targetColumns = await getTargetColumns(client, table);
+    const targetColumn = targetColumns.find((item) => item.column_name === column.column_name);
+
+    if (targetColumn && !targetColumn.not_null) {
+      await client.query(
+        `ALTER TABLE ${tableSql} ALTER COLUMN ${quoteIdentifier(column.column_name)} SET NOT NULL`
+      );
+    }
   }
 }
 
@@ -244,6 +290,10 @@ async function syncDirection(source, target, table, direction) {
   }
 
   const deleted = await deleteMissingRows(target, table, sourceSchema, sourceKeys);
+
+  // Después de que las filas del origen ya fueron copiadas y las filas
+  // sobrantes eliminadas, podemos aplicar NOT NULL de forma segura.
+  await applySourceNotNullConstraints(target, table, sourceSchema);
 
   return {
     direction,
