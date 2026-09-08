@@ -39,24 +39,61 @@
   function marcarMenuActivo(){
     const nav=document.querySelector('nav[aria-label="Menú principal"]');
     if(!nav) return;
-    const actual=window.location.pathname.replace(/\/$/,'').toLowerCase();
+
+    const actualPath=window.location.pathname.replace(/\/$/,'').toLowerCase();
+    const actualHash=window.location.hash.toLowerCase();
     const enlaces=[...nav.querySelectorAll('a[href]')];
-    enlaces.forEach(a=>{a.classList.remove('active');a.removeAttribute('aria-current');});
-    let activo=enlaces.find(a=>{
-      try{return new URL(a.href,window.location.origin).pathname.replace(/\/$/,'').toLowerCase()===actual;}
-      catch(_){return false;}
+
+    enlaces.forEach(a=>{
+      a.classList.remove('active');
+      a.removeAttribute('aria-current');
     });
-    if(!activo && (actual==='/html/frmmenprinci.html'||actual==='/frmmenprinci.html')){
+
+    let activo=null;
+
+    // Primero buscamos coincidencia exacta de ruta + hash.
+    activo=enlaces.find(a=>{
+      try{
+        const url=new URL(a.href,window.location.origin);
+        return url.pathname.replace(/\/$/,'').toLowerCase()===actualPath &&
+               url.hash.toLowerCase()===actualHash &&
+               url.hash!=='';
+      }catch(_){return false;}
+    });
+
+    // Los enlaces que solo tienen #hash pertenecen únicamente a ese hash.
+    if(!activo && actualHash){
+      activo=enlaces.find(a=>{
+        const href=(a.getAttribute('href')||'').trim().toLowerCase();
+        return href.startsWith('#') && href===actualHash;
+      });
+    }
+
+    // Si no hay hash, buscamos un enlace de la misma ruta que no tenga hash.
+    if(!activo){
+      activo=enlaces.find(a=>{
+        try{
+          const url=new URL(a.href,window.location.origin);
+          return url.pathname.replace(/\/$/,'').toLowerCase()===actualPath && url.hash==='';
+        }catch(_){return false;}
+      });
+    }
+
+    if(!activo && (actualPath==='/html/frmmenprinci.html'||actualPath==='/frmmenprinci.html')){
       activo=enlaces.find(a=>a.getAttribute('href')==='/html/frmmenprinci.html');
     }
+
     if(!activo) return;
+
     activo.classList.add('active');
     activo.setAttribute('aria-current','page');
+
     const grupo=activo.closest('.menu-group');
     if(grupo){
       grupo.classList.add('open');
       const parent=grupo.querySelector(':scope > .menu-parent');
       if(parent) parent.setAttribute('aria-expanded','true');
+
       const grupoPadre=grupo.parentElement?.closest('.menu-group');
       if(grupoPadre){
         grupoPadre.classList.add('open');
