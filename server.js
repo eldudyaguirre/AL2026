@@ -56,7 +56,7 @@ const menuLinkMap={
   '#configuracion':'/html/ResumenAdm.html#configuracion'
 };
 
-const fabricaMenu=`<li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/ResumenFab.html">Resumen</a></li><li style="height:1px;background:#e1e5ea;margin:6px 10px;"></li><li><a href="#bitacora-fabrica">Bitácora</a></li><li style="height:1px;background:#e1e5ea;margin:6px 10px;"></li><li><a href="#formulas-fabrica">Fórmulas</a></li><li><span style="display:block;padding:7px 10px 4px 10px;font-size:13px;font-weight:700;color:#073674;">Inventario</span></li><li><a href="#materia-prima" style="padding-left:28px;font-size:12px;">Materia Prima</a></li><li><a href="#producto-final" style="padding-left:28px;font-size:12px;">Producto Final</a></li><li><a href="#ordenes-compra-fabrica">Órdenes de Compra</a></li><li><a href="#ordenes-ingreso-fabrica">Órdenes de Ingreso</a></li><li><a href="#ordenes-despacho-fabrica">Órdenes de Despacho</a></li><li style="height:1px;background:#e1e5ea;margin:6px 10px;"></li><li><a href="#configuracion-fabrica">Configuración</a></li></ul></li>`;
+const fabricaMenu=`<li class="menu-group"><button type="button" class="menu-parent" onclick="toggleSubmenu(this)" aria-expanded="false"><i class="fi fi-rr-industry-windows icon"></i><span>Fábrica</span><i class="fi fi-rr-angle-small-down submenu-arrow"></i></button><ul class="submenu"><li><a href="/html/ResumenFab.html">Resumen</a></li><li><a href="#inventario-fabrica">Inventario</a></li><li><a href="#items-fabrica">Items</a></li><li><a href="#produccion-fabrica">Producción</a></li><li><a href="#ordenes-compra-fabrica">Órdenes de compra</a></li></ul></li>`;
 
 app.get('/html/:archivo.html',(req,res,next)=>{
   const archivo=req.params.archivo;
@@ -68,14 +68,16 @@ app.get('/html/:archivo.html',(req,res,next)=>{
     for(const [origen,destino] of Object.entries(menuLinkMap)){
       html=html.split(`href="${origen}"`).join(`href="${destino}"`);
     }
-    const fabricaRegex=/<li class="menu-group(?: open)?"><button[^>]*>\s*<i[^>]*><\/i>\s*<span>Fábrica<\/span>[\s\S]*?<\/button><ul class="submenu">[\s\S]*?<\/ul><\/li>/;
-    html=html.replace(fabricaRegex,fabricaMenu);
+    if(archivo!=='frmmenprinci'){
+      const fabricaRegex=/<li class="menu-group(?: open)?"><button[^>]*>\s*<i[^>]*><\/i>\s*<span>Fábrica<\/span>[\s\S]*?<\/button><ul class="submenu">[\s\S]*?<\/ul><\/li>/;
+      html=html.replace(fabricaRegex,fabricaMenu);
+    }
     if(!html.includes('href="/html/FrmBalResul.html"')){
       const balanceGeneralLi=/<li><a href="\/html\/FrmBalGeneral\.html"[^>]*>Balance General<\/a><\/li>/;
       html=html.replace(balanceGeneralLi,match=>`${match}<li><a href="/html/FrmBalResul.html">Balance de Resultados</a></li>`);
     }
     html=html.replace(/\s*<link[^>]+href=["'][^"']*\/css\/frmmenprinci\.css[^"']*["'][^>]*>/gi,'');
-    html=html.replace(/\s*<script[^>]+src=["'][^"']*\/js\/frmmenprinci\.js[^"']*["'][^>]*><\/script>/gi,'');
+    html=html.replace(/\s*<script[^>]+src=["'][^"']*\/js\/frmmenprinci\.js[^"']*["']><\/script>/gi,'');
     html=html.replace('</head>','<link rel="stylesheet" href="/css/frmmenprinci.css?v=20260908">\n</head>');
     html=html.replace('</body>','<script src="/js/frmmenprinci.js?v=20260908"></script>\n</body>');
     res.type('html').send(html);
