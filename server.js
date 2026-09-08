@@ -11,6 +11,7 @@ const trabajadoresRoutes = require('./app/routes/trabajadores.routes');
 const clientesRoutes = require('./app/routes/clientes.routes');
 const proveedoresRoutes = require('./app/routes/proveedores.routes');
 const systemController = require('./app/controllers/system.controller');
+const { getSession, requireSegapp } = require('./app/auth/session');
 const pool = require('./app/database/postgres');
 const fs = require('fs');
 const path = require('path');
@@ -57,16 +58,91 @@ const menuLinkMap={
   '#configuracion':'/html/ResumenAdm.html#configuracion'
 };
 
-function obtenerMenuOriginal(){
-  const origen=fs.readFileSync(menuSourcePath,'utf8');
+function extraerNav(origen){
   const inicio=origen.indexOf('<nav');
   const fin=origen.indexOf('</nav>',inicio);
   if(inicio<0||fin<0) throw new Error('No se encontró el menú original en frmmenprinci.html');
-  let nav=origen.slice(inicio,fin+6);
+  return origen.slice(inicio,fin+6);
+}
+
+function reemplazarEnlaces(nav){
   for(const [origenLink,destino] of Object.entries(menuLinkMap)){
     nav=nav.split(`href="${origenLink}"`).join(`href="${destino}"`);
   }
   return nav;
+}
+
+function extraerBloqueLi(html,inicio){
+  let profundidad=0;
+  for(let pos=inicio;pos<html.length;){
+    const apertura=html.indexOf('<li',pos);
+    const cierre=html.indexOf('</li>',pos);
+    if(cierre<0) return html.slice(inicio);
+    if(apertura>=0 && apertura<cierre){
+      profundidad++;
+      pos=apertura+3;
+    }else{
+      profundidad--;
+      pos=cierre+5;
+      if(profundidad===0) return html.slice(inicio,pos);
+    }
+  }
+  return html.slice(inicio);
+}
+
+function filtrarMenuPorSegapp(nav,segapp){
+  const modulo=String(segapp||'').trim().toUpperCase();
+  if(modulo==='ADMINISTRATIVO') return nav;
+  const grupos=[];
+  const re=/<li[^>]*class="[^"]*menu-group[^"]*"[^>]*data-segapp="([^"]+)"[^>]*>/gi;
+  let m;
+  while((m=re.exec(nav))!==null){
+    const bloque=extraerBloqueLi(nav,m.index);
+    grupos.push({inicio:m.index,fin:m.index+bloque.length,segapp:m[1].toUpperCase()});
+  }
+  for(let i=grupos.length-1;i>=0;i--){
+    if(grupos[i].segapp!==modulo) nav=nav.slice(0,grupos[i].inicio)+nav.slice(grupos[i].fin);
+  }
+  const configRe=/<li[^>]*data-segapp="ADMINISTRATIVO"[^>]*>.*?<\/li>/gi;
+  nav=nav.replace(configRe,'');
+  return nav;
+}
+
+function obtenerMenuOriginal(segapp){
+  const origen=fs.readFileSync(menuSourcePath,'utf8');
+  let nav=extraerNav(origen);
+  nav=filtrarMenuPorSegapp(nav,segapp);
+  return reemplazarEnlaces(nav);
+}
+
+function obtenerModulosPorRuta(){
+  const origen=fs.readFileSync(menuSourcePath,'utf8');
+  const nav=extraerNav(origen);
+  const resultado={};
+  const re=/<li[^>]*class="[^"]*menu-group[^"]*"[^>]*data-segapp="([^"]+)"[^>]*>/gi;
+  let m;
+  while((m=re.exec(nav))!==null){
+    const modulo=m[1].toUpperCase();
+    const bloque=extraerBloqueLi(nav,m.index);
+    const hrefs=[...bloque.matchAll(/href="([^"]+)"/gi)].map(x=>x[1]);
+    for(const href of hrefs){
+      const destino=menuLinkMap[href]||href;
+      if(destino.startsWith('/html/')) resultado[destino.split('#')[0].toLowerCase()]=modulo;
+    }
+  }
+  resultado['/html/frmmenprinci.html']='PUBLICO';
+  return resultado;
+}
+
+function moduloPermitido(req){
+  const session=getSession(req);
+  if(!session) return null;
+  const segapp=String(session.segapp||'').trim().toUpperCase();
+  if(segapp==='ADMINISTRATIVO') return true;
+  const ruta=`/html/${req.params.archivo}.html`.toLowerCase();
+  const modulos=obtenerModulosPorRuta();
+  const requerido=modulos[ruta];
+  return requerido==='PUBLICO'||requerido===segapp;
 }
 
 app.get('/html/:archivo.html',(req,res,next)=>{
@@ -74,10 +150,17 @@ app.get('/html/:archivo.html',(req,res,next)=>{
   const filePath=path.join(__dirname,'public','html',`${archivo}.html`);
   if(!fs.existsSync(filePath)) return next();
   if(archivo.toLowerCase()==='login') return res.sendFile(filePath);
+  const session=getSession(req);
+  if(!session) return res.redirect('/html/login.html');
+  if(!moduloPermitido(req)) return res.status(403).send('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Acceso denegado</title><style>body{font-family:Arial,sans-serif;background:#09203C;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}div{max-width:520px;padding:30px}a{color:#fff;font-weight:bold}</style></head><body><div><h1>Acceso denegado</h1><p>Su usuario no tiene permisos para acceder a este módulo.</p><a href="/html/frmmenprinci.html">Volver al menú principal</a></div></body></html>');
   try{
     let html=fs.readFileSync(filePath,'utf8');
+    const menuOriginal=obtenerMenuOriginal(session.segapp);
     if(archivo!=='frmmenprinci'){
-      const menuOriginal=obtenerMenuOriginal();
+      const inicio=html.indexOf('<nav');
+      const fin=html.indexOf('</nav>',inicio);
+      if(inicio>=0&&fin>=0) html=html.slice(0,inicio)+menuOriginal+html.slice(fin+6);
+    }else{
       const inicio=html.indexOf('<nav');
       const fin=html.indexOf('</nav>',inicio);
       if(inicio>=0&&fin>=0) html=html.slice(0,inicio)+menuOriginal+html.slice(fin+6);
@@ -85,7 +168,7 @@ app.get('/html/:archivo.html',(req,res,next)=>{
     for(const [origenLink,destino] of Object.entries(menuLinkMap)){
       html=html.split(`href="${origenLink}"`).join(`href="${destino}"`);
     }
-    if(!html.includes('href="/html/FrmBalResul.html"')){
+    if(!html.includes('href="/html/FrmBalResul.html"') && session.segapp==='ADMINISTRATIVO'){
       const balanceGeneralLi=/<li><a href="\/html\/FrmBalGeneral\.html"[^>]*>Balance General<\/a><\/li>/;
       html=html.replace(balanceGeneralLi,match=>`${match}<li><a href="/html/FrmBalResul.html">Balance de Resultados</a></li>`);
     }
@@ -99,15 +182,15 @@ app.get('/html/:archivo.html',(req,res,next)=>{
 
 app.use('/api',authRoutes);
 app.use('/api',systemRoutes);
-app.use('/api',comprasRoutes);
-app.use('/api',ventasRoutes);
-app.use('/api',cuePagarRoutes);
-app.use('/api',cueCobrarRoutes);
-app.use('/api',balGeneralRoutes);
-app.use('/api',balResulRoutes);
-app.use('/api',trabajadoresRoutes);
-app.use('/api',clientesRoutes);
-app.use('/api',proveedoresRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),comprasRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),ventasRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),cuePagarRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),cueCobrarRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),balGeneralRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),balResulRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),trabajadoresRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),clientesRoutes);
+app.use('/api',requireSegapp('ADMINISTRATIVO'),proveedoresRoutes);
 app.get('/health',systemController.health);
 app.use(express.static('public'));
 app.listen(port,'0.0.0.0',()=>console.log(`AL2026 API listening on port ${port}`));
