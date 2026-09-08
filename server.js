@@ -62,6 +62,13 @@ app.get('/html/:archivo.html',(req,res,next)=>{
       const balanceGeneralLi=/<li><a href="\/html\/FrmBalGeneral\.html"[^>]*>Balance General<\/a><\/li>/;
       html=html.replace(balanceGeneralLi,match=>`${match}<li><a href="/html/FrmBalResul.html">Balance de Resultados</a></li>`);
     }
+
+    /* Forzar el CSS y JS del menu comun al final para que todos los HTML se vean iguales. */
+    html=html.replace(/\s*<link[^>]+href=["'][^"']*\/css\/frmmenprinci\.css[^"']*["'][^>]*>/gi,'');
+    html=html.replace(/\s*<script[^>]+src=["'][^"']*\/js\/frmmenprinci\.js[^"']*["'][^>]*><\/script>/gi,'');
+    html=html.replace('</head>','<link rel="stylesheet" href="/css/frmmenprinci.css?v=20260907">\n</head>');
+    html=html.replace('</body>','<script src="/js/frmmenprinci.js?v=20260907"></script>\n</body>');
+
     res.type('html').send(html);
   }catch(error){next(error);}
 });
