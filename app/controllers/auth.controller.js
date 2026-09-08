@@ -16,7 +16,7 @@ async function login(req, res) {
 
   try {
     const result = await pool.query(
-      `SELECT usrname, nomusuari, s0100
+      `SELECT usrname, nomusuari, s0100, segapp
        FROM seguridad
        WHERE usrname = $1 AND conusuari = $2
        LIMIT 1`,
@@ -35,6 +35,7 @@ async function login(req, res) {
       ok: true,
       usuario: user.usrname,
       nombre: user.nomusuari,
+      segapp: String(user.segapp || '').trim().toUpperCase(),
     });
   } catch (error) {
     console.error('Login error:', error.message);
@@ -51,6 +52,7 @@ function session(req, res) {
     usuario: current.usuario,
     nombre: current.nombre,
     s0100: current.s0100,
+    segapp: current.segapp,
   });
 }
 
