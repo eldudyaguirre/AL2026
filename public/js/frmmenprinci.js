@@ -36,6 +36,36 @@
     button.setAttribute('aria-expanded','true');
   };
 
+  function marcarMenuActivo(){
+    const nav=document.querySelector('nav[aria-label="Menú principal"]');
+    if(!nav) return;
+    const actual=window.location.pathname.replace(/\/$/,'').toLowerCase();
+    const enlaces=[...nav.querySelectorAll('a[href]')];
+    enlaces.forEach(a=>{a.classList.remove('active');a.removeAttribute('aria-current');});
+    let activo=enlaces.find(a=>{
+      try{return new URL(a.href,window.location.origin).pathname.replace(/\/$/,'').toLowerCase()===actual;}
+      catch(_){return false;}
+    });
+    if(!activo && (actual==='/html/frmmenprinci.html'||actual==='/frmmenprinci.html')){
+      activo=enlaces.find(a=>a.getAttribute('href')==='/html/frmmenprinci.html');
+    }
+    if(!activo) return;
+    activo.classList.add('active');
+    activo.setAttribute('aria-current','page');
+    const grupo=activo.closest('.menu-group');
+    if(grupo){
+      grupo.classList.add('open');
+      const parent=grupo.querySelector(':scope > .menu-parent');
+      if(parent) parent.setAttribute('aria-expanded','true');
+      const grupoPadre=grupo.parentElement?.closest('.menu-group');
+      if(grupoPadre){
+        grupoPadre.classList.add('open');
+        const parentPadre=grupoPadre.querySelector(':scope > .menu-parent');
+        if(parentPadre) parentPadre.setAttribute('aria-expanded','true');
+      }
+    }
+  }
+
   window.cargarMenuUsuario=async function(){
     try{
       const response=await fetch('/api/session');
@@ -62,7 +92,8 @@
     };
   }
 
-  if(document.getElementById('profile-name') && !document.querySelector('[data-page-dashboard]')){
-    window.cargarMenuUsuario();
-  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    if(document.getElementById('profile-name') && !document.querySelector('[data-page-dashboard]')) window.cargarMenuUsuario();
+    marcarMenuActivo();
+  });
 })();
