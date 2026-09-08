@@ -58,6 +58,12 @@ const menuLinkMap={
   '#configuracion':'/html/ResumenAdm.html#configuracion'
 };
 
+function normalizarSegapp(valor){
+  const segapp=String(valor||'').trim().toUpperCase();
+  if(segapp==='PORCINO') return 'PORCINA';
+  return segapp;
+}
+
 function extraerNav(origen){
   const inicio=origen.indexOf('<nav');
   const fin=origen.indexOf('</nav>',inicio);
@@ -91,14 +97,14 @@ function extraerBloqueLi(html,inicio){
 }
 
 function filtrarMenuPorSegapp(nav,segapp){
-  const modulo=String(segapp||'').trim().toUpperCase();
+  const modulo=normalizarSegapp(segapp);
   if(modulo==='ADMINISTRATIVO') return nav;
   const grupos=[];
   const re=/<li[^>]*class="[^"]*menu-group[^"]*"[^>]*data-segapp="([^"]+)"[^>]*>/gi;
   let m;
   while((m=re.exec(nav))!==null){
     const bloque=extraerBloqueLi(nav,m.index);
-    grupos.push({inicio:m.index,fin:m.index+bloque.length,segapp:m[1].toUpperCase()});
+    grupos.push({inicio:m.index,fin:m.index+bloque.length,segapp:normalizarSegapp(m[1])});
   }
   for(let i=grupos.length-1;i>=0;i--){
     if(grupos[i].segapp!==modulo) nav=nav.slice(0,grupos[i].inicio)+nav.slice(grupos[i].fin);
@@ -122,7 +128,7 @@ function obtenerModulosPorRuta(){
   const re=/<li[^>]*class="[^"]*menu-group[^"]*"[^>]*data-segapp="([^"]+)"[^>]*>/gi;
   let m;
   while((m=re.exec(nav))!==null){
-    const modulo=m[1].toUpperCase();
+    const modulo=normalizarSegapp(m[1]);
     const bloque=extraerBloqueLi(nav,m.index);
     const hrefs=[...bloque.matchAll(/href="([^"]+)"/gi)].map(x=>x[1]);
     for(const href of hrefs){
@@ -137,7 +143,7 @@ function obtenerModulosPorRuta(){
 function moduloPermitido(req){
   const session=getSession(req);
   if(!session) return null;
-  const segapp=String(session.segapp||'').trim().toUpperCase();
+  const segapp=normalizarSegapp(session.segapp);
   if(segapp==='ADMINISTRATIVO') return true;
   const ruta=`/html/${req.params.archivo}.html`.toLowerCase();
   const modulos=obtenerModulosPorRuta();
