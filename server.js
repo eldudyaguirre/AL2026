@@ -16,7 +16,18 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 const port = Number(process.env.PORT || 3000);
-app.use(express.json());app.get('/',(_req,res)=>res.redirect('/html/login.html'));app.get('/login.html',(_req,res)=>res.redirect('/html/login.html'));app.get('/frmmenprinci.html',(_req,res)=>res.redirect('/html/frmmenprinci.html'));app.get('/FrmCueCobrar.html',(_req,res)=>res.redirect('/html/FrmCueCobrar.html'));app.get('/FrmBalGeneral.html',(_req,res)=>res.redirect('/html/FrmBalGeneral.html'));app.get('/FrmBalResul.html',(_req,res)=>res.redirect('/html/FrmBalResul.html'));app.get('/ResumenAdm.html',(_req,res)=>res.redirect('/html/ResumenAdm.html'));app.get('/Clientes.html',(_req,res)=>res.redirect('/html/Clientes.html'));app.get('/Proveedores.html',(_req,res)=>res.redirect('/html/Proveedores.html'));
+app.use(express.json());
+
+const loginPath=path.join(__dirname,'public','html','login.html');
+app.get('/',(_req,res)=>res.sendFile(loginPath));
+app.get('/login.html',(_req,res)=>res.sendFile(loginPath));
+app.get('/frmmenprinci.html',(_req,res)=>res.redirect('/html/frmmenprinci.html'));
+app.get('/FrmCueCobrar.html',(_req,res)=>res.redirect('/html/FrmCueCobrar.html'));
+app.get('/FrmBalGeneral.html',(_req,res)=>res.redirect('/html/FrmBalGeneral.html'));
+app.get('/FrmBalResul.html',(_req,res)=>res.redirect('/html/FrmBalResul.html'));
+app.get('/ResumenAdm.html',(_req,res)=>res.redirect('/html/ResumenAdm.html'));
+app.get('/Clientes.html',(_req,res)=>res.redirect('/html/Clientes.html'));
+app.get('/Proveedores.html',(_req,res)=>res.redirect('/html/Proveedores.html'));
 
 const menuLinkMap={
   '#resumen-avicola':'/html/ResumenAvi.html',
@@ -51,6 +62,7 @@ app.get('/html/:archivo.html',(req,res,next)=>{
   const archivo=req.params.archivo;
   const filePath=path.join(__dirname,'public','html',`${archivo}.html`);
   if(!fs.existsSync(filePath)) return next();
+  if(archivo.toLowerCase()==='login') return res.sendFile(filePath);
   try{
     let html=fs.readFileSync(filePath,'utf8');
     for(const [origen,destino] of Object.entries(menuLinkMap)){
@@ -62,15 +74,26 @@ app.get('/html/:archivo.html',(req,res,next)=>{
       const balanceGeneralLi=/<li><a href="\/html\/FrmBalGeneral\.html"[^>]*>Balance General<\/a><\/li>/;
       html=html.replace(balanceGeneralLi,match=>`${match}<li><a href="/html/FrmBalResul.html">Balance de Resultados</a></li>`);
     }
-
-    /* Forzar el CSS y JS del menu comun al final para que todos los HTML se vean iguales. */
     html=html.replace(/\s*<link[^>]+href=["'][^"']*\/css\/frmmenprinci\.css[^"']*["'][^>]*>/gi,'');
     html=html.replace(/\s*<script[^>]+src=["'][^"']*\/js\/frmmenprinci\.js[^"']*["'][^>]*><\/script>/gi,'');
-    html=html.replace('</head>','<link rel="stylesheet" href="/css/frmmenprinci.css?v=20260907">\n</head>');
-    html=html.replace('</body>','<script src="/js/frmmenprinci.js?v=20260907"></script>\n</body>');
-
+    html=html.replace('</head>','<link rel="stylesheet" href="/css/frmmenprinci.css?v=20260908">\n</head>');
+    html=html.replace('</body>','<script src="/js/frmmenprinci.js?v=20260908"></script>\n</body>');
     res.type('html').send(html);
   }catch(error){next(error);}
 });
 
-app.use('/api',authRoutes);app.use('/api',systemRoutes);app.use('/api',comprasRoutes);app.use('/api',ventasRoutes);app.use('/api',cuePagarRoutes);app.use('/api',cueCobrarRoutes);app.use('/api',balGeneralRoutes);app.use('/api',balResulRoutes);app.use('/api',trabajadoresRoutes);app.use('/api',clientesRoutes);app.use('/api',proveedoresRoutes);app.get('/health',systemController.health);app.use(express.static('public'));app.listen(port,'0.0.0.0',()=>console.log(`AL2026 API listening on port ${port}`));process.on('SIGTERM',async()=>{await pool.end();process.exit(0);});
+app.use('/api',authRoutes);
+app.use('/api',systemRoutes);
+app.use('/api',comprasRoutes);
+app.use('/api',ventasRoutes);
+app.use('/api',cuePagarRoutes);
+app.use('/api',cueCobrarRoutes);
+app.use('/api',balGeneralRoutes);
+app.use('/api',balResulRoutes);
+app.use('/api',trabajadoresRoutes);
+app.use('/api',clientesRoutes);
+app.use('/api',proveedoresRoutes);
+app.get('/health',systemController.health);
+app.use(express.static('public'));
+app.listen(port,'0.0.0.0',()=>console.log(`AL2026 API listening on port ${port}`));
+process.on('SIGTERM',async()=>{await pool.end();process.exit(0);});
