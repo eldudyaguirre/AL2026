@@ -114,10 +114,17 @@ function filtrarMenuPorSegapp(nav,segapp){
   return nav;
 }
 
+function agregarReportePorAreas(nav,segapp){
+  if(normalizarSegapp(segapp)!=='ADMINISTRATIVO' || nav.includes('/html/FrmRepArea.html')) return nav;
+  const roles=/<li><a href="#roles">Rol de Pagos<\/a><\/li>/;
+  return nav.replace(roles,match=>`${match}<li class="submenu-separator"></li><li><a href="/html/FrmRepArea.html">Reporte por Áreas</a></li>`);
+}
+
 function obtenerMenuOriginal(segapp){
   const origen=fs.readFileSync(menuSourcePath,'utf8');
   let nav=extraerNav(origen);
   nav=filtrarMenuPorSegapp(nav,segapp);
+  nav=agregarReportePorAreas(nav,segapp);
   return reemplazarEnlaces(nav);
 }
 
@@ -137,6 +144,7 @@ function obtenerModulosPorRuta(){
     }
   }
   resultado['/html/frmmenprinci.html']='PUBLICO';
+  resultado['/html/frmreparea.html']='ADMINISTRATIVO';
   return resultado;
 }
 
