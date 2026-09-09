@@ -2,7 +2,6 @@
 
 :root{--blue:#073674;--green:#24be24;--dark:#3f3f3f;--light:#f4f5f7;--orange:#F24603;--bluetheme:#09203C}
 body{margin:0;font-family:Arial,sans-serif;background:var(--light);color:#222;min-height:100vh}
-.layout{display:flex;min-height:100vh}
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:285px;background:#fff;padding:20px;box-shadow:3px 0 18px rgba(0,0,0,.12);z-index:100;display:flex;flex-direction:column;overflow-y:auto}
 .sidebar-top{display:flex;align-items:center;justify-content:center;margin-bottom:10px;position:relative}.brand{display:flex;align-items:center;justify-content:center;width:100%}.brand-logo{display:block;width:210px;height:auto;max-width:100%;object-fit:contain}
 .close-btn{display:none;border:0;background:transparent;font-size:26px;color:#444;cursor:pointer;position:absolute;right:0;top:0}
@@ -17,6 +16,7 @@ body{margin:0;font-family:Arial,sans-serif;background:var(--light);color:#222;mi
 .menu a.active{background:#f0f2f5;color:var(--blue);font-weight:700;position:relative}.menu a.active::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--orange);border-radius:0 3px 3px 0}
 .menu-parent .icon{color:inherit}.submenu-arrow{margin-left:auto;font-size:18px;transition:transform .2s ease}.menu-group.open>.menu-parent{background:#f0f2f5;color:var(--blue);font-weight:700;position:relative}.menu-group.open>.menu-parent::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--orange);border-radius:0 3px 3px 0}.menu-group.open>.menu-parent .submenu-arrow{transform:rotate(180deg)}
 .submenu{display:none;flex-direction:column;gap:2px;padding:4px 0 5px 20px!important;margin:0!important;border-left:2px solid #edf0f4}.menu-group.open>.submenu{display:flex}.submenu>li{position:relative}.submenu a{display:flex;align-items:center;padding:9px 12px 9px 17px;border-radius:8px;font-size:13px;line-height:18px;color:#6b7280;position:relative}.submenu a::before{content:"";position:absolute;left:5px;top:50%;width:4px;height:4px;border-radius:50%;background:#aeb6c1;transform:translateY(-50%)}.submenu a:hover{background:#f5f7fa;color:var(--blue);transform:translateX(2px)}.submenu a.active{background:#f0f2f5;color:var(--blue);font-weight:700}.submenu a.active::before{left:5px;top:0;bottom:0;width:3px;height:auto;border-radius:0 3px 3px 0;background:var(--orange);transform:none}
+.submenu-separator{display:block!important;height:1px!important;background:#e1e5ea!important;margin:7px 10px!important;padding:0!important;width:auto!important;list-style:none!important}
 .submenu>.menu-group{width:100%;margin:0!important;padding:0!important}.submenu>.menu-group>.menu-parent{padding:9px 12px 9px 17px;border-radius:8px;font-size:13px;line-height:18px;color:#6b7280;font-weight:400}.submenu>.menu-group>.menu-parent:hover{background:#f5f7fa;color:var(--blue)}.submenu>.menu-group>.submenu{margin-left:12px!important;padding-left:12px!important}
 .icon{width:20px;height:20px;text-align:center;font-size:17px;line-height:20px;flex:0 0 20px;display:inline-flex;align-items:center;justify-content:center}
 .sidebar-bottom{margin-top:auto;padding-top:20px;border-top:1px solid #eee}.logout-link{width:100%;border:0;background:transparent;color:#777;display:flex;align-items:center;gap:13px;padding:12px 13px;border-radius:10px;cursor:pointer;text-align:left;font-size:14px}.logout-link:hover{background:#f8eeee;color:#a33}.flaticon-credit{display:block;margin:8px 13px 0;color:#aaa;font-size:10px;text-decoration:none}.flaticon-credit:hover{color:var(--blue);text-decoration:underline}.overlay{display:none}
@@ -49,6 +49,7 @@ html body .sidebar .menu .submenu>.menu-group.open>.submenu{display:flex!importa
 html body .sidebar .menu .submenu .menu-group.open>.menu-parent{background:#f5f7fa!important;color:#073674!important;font-weight:600!important}
 html body .sidebar .menu .submenu .submenu{border-left:1px solid #edf0f4!important}
 html body .sidebar .menu .submenu li[style*="height:1px"]{display:block!important;height:1px!important;background:#e1e5ea!important;margin:6px 10px!important;padding:0!important}
+html body .sidebar .menu .submenu li.submenu-separator{display:block!important;height:1px!important;background:#e1e5ea!important;margin:7px 10px!important;padding:0!important;width:auto!important}
 html body .sidebar .menu .submenu a::before{display:block!important}
 html body .sidebar .menu .submenu a.active::before{background:#F24603!important}
 html body .sidebar .menu .menu-parent>i:last-child{margin-left:auto!important;font-size:18px!important}
