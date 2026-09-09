@@ -50,6 +50,7 @@
     const sidebar=document.getElementById('sidebar');
     if(!sidebar) return;
     let boton=document.getElementById('mobile-menu-float');
+    const topbar=document.querySelector('.topbar');
     if(!boton){
       boton=document.createElement('button');
       boton.id='mobile-menu-float';
@@ -58,17 +59,18 @@
       boton.setAttribute('aria-label','Abrir menú');
       boton.innerHTML='<i class="fi fi-rr-menu-burger"></i>';
       boton.addEventListener('click',window.abrirMenu);
-      document.body.appendChild(boton);
+      (topbar||document.body).appendChild(boton);
+    }else if(topbar&&boton.parentElement!==topbar){
+      topbar.appendChild(boton);
     }
     let style=document.getElementById('mobile-menu-float-style');
     if(!style){
       style=document.createElement('style');
       style.id='mobile-menu-float-style';
-      style.textContent='@media(max-width:900px){.mobile-menu-float{display:none;position:fixed;top:12px;left:12px;z-index:1200;width:46px;height:46px;padding:0;border:0;border-radius:12px;background:#073674;color:#fff;font-size:22px;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}.mobile-menu-float.show{display:grid}}';
+      style.textContent='@media(max-width:900px){.topbar{position:relative}.mobile-menu-float{display:none;position:absolute;top:50%;left:12px;transform:translateY(-50%);z-index:10;width:46px;height:46px;padding:0;border:0;border-radius:12px;background:#073674;color:#fff;font-size:22px;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}.mobile-menu-float.show{display:grid}.topbar-title{padding-left:58px}}';
       document.head.appendChild(style);
     }
-    const actualizar=()=>boton.classList.add('show');
-    actualizar();
+    boton.classList.add('show');
   }
 
   window.cargarMenuUsuario=async function(){
