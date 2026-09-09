@@ -7,18 +7,20 @@ function pintarProyectos(proyectos) {
     return;
   }
 
-  const color = '#F24603';
+  const colorBorde = '#F24603';
+  const colorAzul = '#073674';
+  const colorCyan = '#21c4c9';
 
   contenedor.innerHTML = proyectos.map((p) => {
     const nombre = escapar(p.proyecto || 'SIN ÁREA');
     const gasto = dinero(p.gasto);
     const movimientos = Number(p.movimientos || 0);
-    return `<article class="proyecto-card" style="border-left-color:${color}">
-      <div class="proyecto-icon" style="color:${color}"><i class="fi fi-rr-briefcase"></i></div>
+    return `<article class="proyecto-card" style="border-left-color:${colorBorde}">
+      <div class="proyecto-icon" style="color:${colorCyan}"><i class="fi fi-rr-briefcase"></i></div>
       <div class="proyecto-info">
         <div class="proyecto-label">Área</div>
         <h3 title="${nombre}">${nombre}</h3>
-        <div class="proyecto-gasto" style="color:${color}">${gasto}</div>
+        <div class="proyecto-gasto" style="color:${colorAzul}">${gasto}</div>
         <div class="proyecto-note">${movimientos.toLocaleString('es-EC')} movimiento(s)</div>
       </div>
     </article>`;
