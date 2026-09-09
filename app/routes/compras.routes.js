@@ -1,6 +1,7 @@
 const express = require('express');
 const controller = require('../controllers/compras.controller');
 const proyectosController = require('../controllers/compras-proyectos.controller');
+const placasController = require('../controllers/compras-placas.controller');
 const comprasDiccionarioController = require('../controllers/compras-diccionario-test');
 const comprasJsonController = require('../controllers/compras-json-test');
 const comprasDosConsultasController = require('../controllers/compras-dos-consultas-test');
@@ -17,6 +18,8 @@ router.get('/compras/proyectos', requireSession, proyectosController.resumenGast
 router.get('/compras/vehiculos', requireSession, proyectosController.resumenGastosPorVehiculo);
 router.get('/compras/reporte-area', requireSession, proyectosController.reporteDetallePorArea);
 router.get('/compras/reporte-area/pdf', requireSession, proyectosController.exportarReporteAreaPdf);
+router.get('/compras/placas', requireSession, placasController.listarPlacas);
+router.get('/compras/reporte-placa', requireSession, placasController.reporteDetallePorPlaca);
 router.get('/compras-solo-test', requireSession, comprasSoloController.comprasSoloTest);
 router.get('/compras-diccionario-test', requireSession, comprasDiccionarioController.comprasDiccionarioTest);
 router.get('/compras-conexion-test', requireSession, comprasDiccionarioController.comprasConexionTest);
