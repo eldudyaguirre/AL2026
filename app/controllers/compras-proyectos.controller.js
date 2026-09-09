@@ -119,25 +119,33 @@ async function exportarReporteAreaPdf(req, res) {
     res.status(200);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margins: { top: 28, bottom: 28, left: 28, right: 28 }, bufferPages: true });
     doc.pipe(res);
     doc.info.Title = `Reporte por Áreas - ${areaTexto}`;
     doc.info.Subject = 'Detalle de compras, notas de venta y órdenes directas';
 
     const pageWidth = doc.page.width - 56;
-    const widths = [43, 68, 140, 68, 48, 68, 68, 55, 68, 100, 45];
-    const headers = ['Fecha','RUC/Cédula','Nombre','Número','Tipo','Sin IVA','Con IVA','IVA','Total','Área','Origen'];
+    const pageRight = 28 + pageWidth;
+    const widths = [48, 75, 185, 75, 55, 75, 75, 60, 75];
+    const headers = ['Fecha','RUC/Cédula','Nombre','Número','Tipo','Sin IVA','Con IVA','IVA','Total'];
     const rowHeight = 17;
     const headerHeight = 22;
     let y = 30;
 
     function encabezado() {
       doc.fillColor('#073674').font('Helvetica-Bold').fontSize(17).text('Reporte por Áreas', 28, 28);
-      doc.fillColor('#666666').font('Helvetica').fontSize(8.5).text('Detalle de compras, notas de venta y órdenes directas por área de trabajo.', 28, 48);
-      doc.fontSize(8.5).text(`Área: ${areaTexto}`, 813, 28, { align: 'right', width: 0 });
-      doc.text(`Período: ${inicio} al ${fin}`, 813, 41, { align: 'right', width: 0 });
-      doc.text(`Movimientos: ${rows.length}`, 813, 54, { align: 'right', width: 0 });
-      doc.fillColor('#073674').font('Helvetica-Bold').fontSize(8.5).text(`Total sin IVA: ${dineroPdf(totales.sinIva)}`, 28, 64);
+      doc.fillColor('#666666').font('Helvetica').fontSize(8.5).text('Detalle de compras, notas de venta y órdenes directas por área de trabajo.', 28, 48, { width: 470 });
+
+      const anchoMeta = 190;
+      const xMeta = pageRight - anchoMeta;
+      doc.fillColor('#555555').font('Helvetica').fontSize(8.5);
+      doc.text(`Área: ${areaTexto}`, xMeta, 28, { width: anchoMeta, align: 'right', ellipsis: true });
+      doc.text(`Período: ${inicio} al ${fin}`, xMeta, 41, { width: anchoMeta, align: 'right' });
+      doc.text(`Movimientos: ${rows.length}`, xMeta, 54, { width: anchoMeta, align: 'right' });
+
+      doc.fillColor('#073674').font('Helvetica-Bold').fontSize(8.5);
+      doc.text(`Total sin IVA: ${dineroPdf(totales.sinIva)}`, 28, 64);
       doc.text(`Total con IVA: ${dineroPdf(totales.conIva)}`, 170, 64);
       doc.text(`IVA: ${dineroPdf(totales.iva)}`, 315, 64);
       doc.text(`Total general: ${dineroPdf(totales.total)}`, 430, 64);
@@ -155,18 +163,20 @@ async function exportarReporteAreaPdf(req, res) {
       if (y + rowHeight > doc.page.height - 45) nuevaPagina();
       if (idx % 2 === 1) { doc.fillColor('#F3F5F7').rect(28, y, pageWidth, rowHeight).fill(); }
       let x = 28;
-      const vals = [fechaPdf(r.fecha), r.rucCed || '', r.nombre || '', r.numero || '', r.tipoDoc || '', dineroPdf(r.totSinIva), dineroPdf(r.totConIva), dineroPdf(r.iva), dineroPdf(r.total), r.area || '', r.origen || ''];
-      doc.fillColor('#222222').font('Helvetica').fontSize(6.6);
-      vals.forEach((v, i) => { doc.text(String(v), x + 3, y + 5, { width: widths[i] - 6, ellipsis: true, align: i >= 5 && i <= 8 ? 'right' : 'left' }); x += widths[i]; });
+      const vals = [fechaPdf(r.fecha), r.rucCed || '', r.nombre || '', r.numero || '', r.tipoDoc || '', dineroPdf(r.totSinIva), dineroPdf(r.totConIva), dineroPdf(r.iva), dineroPdf(r.total)];
+      doc.fillColor('#222222').font('Helvetica').fontSize(6.8);
+      vals.forEach((v, i) => { doc.text(String(v), x + 3, y + 5, { width: widths[i] - 6, ellipsis: true, align: i >= 5 ? 'right' : 'left' }); x += widths[i]; });
       doc.strokeColor('#D9DDE2').lineWidth(0.4).moveTo(28, y + rowHeight).lineTo(28 + pageWidth, y + rowHeight).stroke();
       y += rowHeight;
     });
+
     if (y + 24 > doc.page.height - 28) nuevaPagina();
     doc.fillColor('#E9EDF2').rect(28, y, pageWidth, 20).fill();
     doc.fillColor('#073674').font('Helvetica-Bold').fontSize(8).text('TOTAL', 31, y + 6);
     let xTotal = 28;
-    const totalVals = ['', '', '', '', '', dineroPdf(totales.sinIva), dineroPdf(totales.conIva), dineroPdf(totales.iva), dineroPdf(totales.total), '', ''];
-    totalVals.forEach((v, i) => { if (v) doc.text(v, xTotal + 3, y + 6, { width: widths[i] - 6, align: i >= 5 && i <= 8 ? 'right' : 'left' }); xTotal += widths[i]; });
+    const totalVals = ['', '', '', '', '', dineroPdf(totales.sinIva), dineroPdf(totales.conIva), dineroPdf(totales.iva), dineroPdf(totales.total)];
+    totalVals.forEach((v, i) => { if (v) doc.text(v, xTotal + 3, y + 6, { width: widths[i] - 6, align: 'right' }); xTotal += widths[i]; });
+
     doc.fillColor('#777777').font('Helvetica').fontSize(7).text('Generado desde Avícola y Porcina Luisin', 28, doc.page.height - 24);
     doc.end();
   } catch (error) {
