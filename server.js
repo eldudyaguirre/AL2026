@@ -31,6 +31,9 @@ app.get('/ResumenAdm.html',(_req,res)=>res.redirect('/html/ResumenAdm.html'));
 app.get('/Clientes.html',(_req,res)=>res.redirect('/html/Clientes.html'));
 app.get('/Proveedores.html',(_req,res)=>res.redirect('/html/Proveedores.html'));
 
+// Servir explícitamente el JS del Reporte por Placas con cabeceras sin caché.
+app.get('/js/FrmRepPla.js',(_req,res)=>{const filePath=path.join(__dirname,'public','js','FrmRepPla.js');if(!fs.existsSync(filePath))return res.status(404).send('FrmRepPla.js no encontrado');res.set('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');res.set('Pragma','no-cache');res.set('Expires','0');res.type('application/javascript').sendFile(filePath);});
+
 const menuLinkMap={
   '#resumen-avicola':'/html/ResumenAvi.html','#resumen-porcina':'/html/ResumenPor.html','#resumen-fabrica':'/html/ResumenFab.html',
   '#granja1':'/html/ResumenAvi.html#granja1','#granja2':'/html/ResumenAvi.html#granja2','#pesaje-avicola':'/html/ResumenAvi.html#pesaje-avicola','#reportes-avicola':'/html/ResumenAvi.html#reportes-avicola','#parametros-avicola':'/html/ResumenAvi.html#parametros-avicola',
