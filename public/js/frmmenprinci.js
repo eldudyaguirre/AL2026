@@ -49,8 +49,9 @@
     if(path==='/html/frmmenprinci.html'||path==='/frmmenprinci.html') return;
     const sidebar=document.getElementById('sidebar');
     if(!sidebar) return;
-    let boton=document.getElementById('mobile-menu-float');
     const topbar=document.querySelector('.topbar');
+    if(!topbar) return;
+    let boton=document.getElementById('mobile-menu-float');
     if(!boton){
       boton=document.createElement('button');
       boton.id='mobile-menu-float';
@@ -59,18 +60,18 @@
       boton.setAttribute('aria-label','Abrir menú');
       boton.innerHTML='<i class="fi fi-rr-menu-burger"></i>';
       boton.addEventListener('click',window.abrirMenu);
-      (topbar||document.body).appendChild(boton);
-    }else if(topbar&&boton.parentElement!==topbar){
-      topbar.appendChild(boton);
+      topbar.insertBefore(boton,topbar.firstChild);
     }
     let style=document.getElementById('mobile-menu-float-style');
     if(!style){
       style=document.createElement('style');
       style.id='mobile-menu-float-style';
-      style.textContent='@media(max-width:900px){.topbar{position:relative}.mobile-menu-float{display:none;position:absolute;top:50%;left:12px;transform:translateY(-50%);z-index:10;width:46px;height:46px;padding:0;border:0;border-radius:12px;background:#073674;color:#fff;font-size:22px;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}.mobile-menu-float.show{display:grid}.topbar-title{padding-left:58px}}';
+      style.textContent='@media(max-width:900px){.topbar{position:relative}.mobile-menu-float{display:grid;position:absolute;top:50%;left:12px;transform:translateY(-50%);z-index:10;width:46px;height:46px;padding:0;border:0;border-radius:12px;background:#09203C;color:#fff;font-size:22px;place-items:center;box-shadow:none;cursor:pointer}.mobile-menu-float.scrolled{position:fixed;top:12px;left:12px;transform:none;background:#09203C;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:1200}.topbar-title{padding-left:58px}}';
       document.head.appendChild(style);
     }
-    boton.classList.add('show');
+    const actualizar=()=>boton.classList.toggle('scrolled',window.scrollY>64);
+    actualizar();
+    window.addEventListener('scroll',actualizar,{passive:true});
   }
 
   window.cargarMenuUsuario=async function(){
