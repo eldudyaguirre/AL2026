@@ -15,6 +15,7 @@ const router = express.Router();
 router.get('/compras', requireSession, controller.compras);
 router.get('/compras/proyectos', requireSession, proyectosController.resumenGastosPorProyecto);
 router.get('/compras/reporte-area', requireSession, proyectosController.reporteDetallePorArea);
+router.get('/compras/reporte-area/pdf', requireSession, proyectosController.exportarReporteAreaPdf);
 router.get('/compras-solo-test', requireSession, comprasSoloController.comprasSoloTest);
 router.get('/compras-diccionario-test', requireSession, comprasDiccionarioController.comprasDiccionarioTest);
 router.get('/compras-conexion-test', requireSession, comprasDiccionarioController.comprasConexionTest);
