@@ -75,6 +75,67 @@ async function resumenGastosPorProyecto(req, res) {
   }
 }
 
+async function resumenGastosPorVehiculo(req, res) {
+  const inicioConsulta = Date.now();
+  let client;
+  try {
+    const ahora = new Date();
+    const inicio = req.query.inicio || `${ahora.getFullYear()}-01-01`;
+    const fin = req.query.fin || `${ahora.getFullYear()}-12-31`;
+    if (!fechaValida(inicio) || !fechaValida(fin)) return res.status(400).json({ error: 'Fechas inválidas. Use YYYY-MM-DD.' });
+
+    client = pool.createDedicatedClient();
+    await client.connect();
+    await client.query('SET statement_timeout = 30000');
+
+    const sql = `
+      WITH gastos AS (
+        SELECT NULLIF(TRIM(C.placa), '') AS placa,
+               COUNT(*)::int AS movimientos,
+               COALESCE(SUM(COALESCE(C.totsiniva,0) + COALESCE(C.totconiva,0)),0)::numeric AS gasto
+        FROM compras C
+        WHERE C.estproces <> 'ANULADA' AND C.feccompra >= $1 AND C.feccompra <= $2
+        GROUP BY NULLIF(TRIM(C.placa), '')
+        UNION ALL
+        SELECT NULLIF(TRIM(C.placa), '') AS placa,
+               COUNT(*)::int AS movimientos,
+               COALESCE(SUM(COALESCE(C.totsiniva,0) + COALESCE(C.totconiva,0)),0)::numeric AS gasto
+        FROM comprasnv C
+        WHERE C.estproces <> 'ANULADA' AND C.feccompra >= $1 AND C.feccompra <= $2
+        GROUP BY NULLIF(TRIM(C.placa), '')
+        UNION ALL
+        SELECT NULLIF(TRIM(C.placa), '') AS placa,
+               COUNT(*)::int AS movimientos,
+               COALESCE(SUM(COALESCE(C.subtotcom,0)),0)::numeric AS gasto
+        FROM comprasod C
+        WHERE C.estproces <> 'ANULADA' AND C.feccompra >= $1 AND C.feccompra <= $2
+        GROUP BY NULLIF(TRIM(C.placa), '')
+      ),
+      resumen AS (
+        SELECT placa, SUM(movimientos)::int AS movimientos, SUM(gasto)::numeric AS gasto
+        FROM gastos
+        WHERE placa IS NOT NULL
+        GROUP BY placa
+      )
+      SELECT TRIM(V.placa) AS placa,
+             COALESCE(R.movimientos,0)::int AS movimientos,
+             COALESCE(R.gasto,0)::numeric AS gasto
+      FROM vehiculos V
+      LEFT JOIN resumen R ON LOWER(TRIM(V.placa)) = LOWER(R.placa)
+      WHERE NULLIF(TRIM(V.placa),'') IS NOT NULL
+      ORDER BY COALESCE(R.gasto,0) DESC, TRIM(V.placa)
+    `;
+
+    const result = await client.query(sql, [inicio, fin]);
+    return res.json({ inicio, fin, totalVehiculos: result.rows.length, tiempoMs: Date.now() - inicioConsulta, vehiculos: result.rows });
+  } catch (error) {
+    console.error('[COMPRAS-VEHICULOS] Error consultando gastos por vehículo:', error);
+    return res.status(500).json({ error: 'Error consultando gastos por vehículo.', detail: error.message, codigo: error.code, tiempoMs: Date.now() - inicioConsulta });
+  } finally {
+    if (client) try { await client.end(); } catch (error) { console.error('[COMPRAS-VEHICULOS] Error cerrando cliente:', error.message); }
+  }
+}
+
 async function reporteDetallePorArea(req, res) {
   const inicioConsulta = Date.now();
   let client;
@@ -188,4 +249,4 @@ async function exportarReporteAreaPdf(req, res) {
   }
 }
 
-module.exports = { resumenGastosPorProyecto, reporteDetallePorArea, exportarReporteAreaPdf };
+module.exports = { resumenGastosPorProyecto, resumenGastosPorVehiculo, reporteDetallePorArea, exportarReporteAreaPdf };
