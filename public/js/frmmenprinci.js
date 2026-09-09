@@ -64,7 +64,7 @@
     if(!style){
       style=document.createElement('style');
       style.id='mobile-menu-float-style';
-      style.textContent='@media(max-width:900px){.mobile-menu-float{display:none;position:fixed;top:12px;right:12px;z-index:1200;width:46px;height:46px;padding:0;border:0;border-radius:12px;background:#073674;color:#fff;font-size:22px;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}.mobile-menu-float.show{display:grid}}';
+      style.textContent='@media(max-width:900px){.mobile-menu-float{display:none;position:fixed;top:12px;left:12px;z-index:1200;width:46px;height:46px;padding:0;border:0;border-radius:12px;background:#073674;color:#fff;font-size:22px;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}.mobile-menu-float.show{display:grid}}';
       document.head.appendChild(style);
     }
     const actualizar=()=>boton.classList.toggle('show',window.scrollY>120);
