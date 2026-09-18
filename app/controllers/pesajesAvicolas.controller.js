@@ -231,12 +231,16 @@ async function detalle(req, res) {
 
     client = await pool.connect();
 
+    const meta = await metadatosClientes(client);
     const cabecera = await client.query(`
       SELECT
         p.*,
+        COALESCE(CAST(c.${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
         COALESCE(pr.proyecto, p.codproy) AS granja
       FROM pesajes_avicolas p
       LEFT JOIN proyectos pr ON pr.codproy = p.codproy
+      LEFT JOIN clientes c
+        ON CAST(c.${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
       WHERE p.id = $1
     `, [id]);
 
@@ -324,12 +328,16 @@ async function reporte(req, res) {
 
     client = await pool.connect();
 
+    const meta = await metadatosClientes(client);
     const result = await client.query(`
       SELECT
         p.*,
+        COALESCE(CAST(c.${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
         COALESCE(pr.proyecto, p.codproy) AS granja
       FROM pesajes_avicolas p
       LEFT JOIN proyectos pr ON pr.codproy = p.codproy
+      LEFT JOIN clientes c
+        ON CAST(c.${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
       WHERE p.id = $1
     `, [id]);
 
