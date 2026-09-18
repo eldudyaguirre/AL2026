@@ -3,7 +3,7 @@ let balanceActual = null;
 function abrirMenu(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');document.body.style.overflow='hidden'}
 function cerrarMenu(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');document.body.style.overflow=''}
 function toggleSubmenu(button){const grupo=button.closest('.menu-group');const abierto=grupo.classList.contains('open');document.querySelectorAll('.menu-group.open').forEach(g=>{g.classList.remove('open');const b=g.querySelector('.menu-parent');if(b)b.setAttribute('aria-expanded','false')});if(!abierto){grupo.classList.add('open');button.setAttribute('aria-expanded','true')}}
-async function cargarUsuario(){try{const r=await fetch('/api/session');if(!r.ok){location.href='/html/login.html';return}const d=await r.json();document.getElementById('profile-name').textContent=d.usuario||'-';document.getElementById('profile-user').textContent=d.nombre||d.usuario||'-'}catch(e){location.href='/html/login.html'}}
+async function cargarUsuario(){try{const r=await fetch('/api/session');if(!r.ok){location.href='/login';return}const d=await r.json();document.getElementById('profile-name').textContent=d.usuario||'-';document.getElementById('profile-user').textContent=d.nombre||d.usuario||'-'}catch(e){location.href='/login'}}
 function dinero(v){const n=Number(v||0);return Number.isFinite(n)?n.toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2}):'0.00'}
 function escapar(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function inicializarFiltros(){
@@ -87,5 +87,5 @@ function exportarPDF(){
   y+=5;doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text(`TOTAL ACTIVO:  ${dinero(balanceActual.totalActivo)}     TOTAL PASIVO + PATRIMONIO:  ${dinero(balanceActual.totalPasivoPatrimonio)}`,105,y,{align:'center'});y+=7;doc.text(`RESULTADO DEL EJERCICIO:  ${dinero(balanceActual.resultadoEjercicio)}`,105,y,{align:'center'});doc.save(`BalanceGeneral_${balanceActual.mes}_${balanceActual.anio}.pdf`);
 }
 function imprimir(){window.print()}
-async function cerrarSesion(){try{await fetch('/api/logout',{method:'POST'})}finally{location.href='/html/login.html'}}
+async function cerrarSesion(){try{await fetch('/api/logout',{method:'POST'})}finally{location.href='/login'}}
 document.addEventListener('DOMContentLoaded',()=>{cargarUsuario();inicializarFiltros();cargarBalance()});

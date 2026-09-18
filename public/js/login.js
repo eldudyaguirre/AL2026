@@ -18,7 +18,7 @@ form.addEventListener('submit',async(event)=>{
     if(!response.ok) throw new Error(data.error||'Usuario o contraseña incorrectos');
     mensaje.className='success';
     mensaje.textContent='Acceso correcto...';
-    window.location.href='/html/frmmenprinci.html';
+    window.location.href='/inicio';
   }catch(error){
     mensaje.textContent=error.message;
     submit.disabled=false;

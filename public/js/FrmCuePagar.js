@@ -3,7 +3,7 @@ let reporteActual=null;
 function abrirMenu(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');document.body.style.overflow='hidden'}
 function cerrarMenu(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');document.body.style.overflow=''}
 function toggleSubmenu(button){const grupo=button.closest('.menu-group');const estabaAbierto=grupo.classList.contains('open');document.querySelectorAll('.menu-group.open').forEach(item=>{item.classList.remove('open');const parent=item.querySelector('.menu-parent');if(parent)parent.setAttribute('aria-expanded','false')});if(!estabaAbierto){grupo.classList.add('open');button.setAttribute('aria-expanded','true')}}
-async function cargarUsuario(){try{const r=await fetch('/api/session');if(!r.ok){location.href='/html/login.html';return}const d=await r.json();document.getElementById('profile-name').textContent=d.usuario||'-';document.getElementById('profile-user').textContent=d.nombre||d.usuario||'-'}catch(e){location.href='/html/login.html'}}
+async function cargarUsuario(){try{const r=await fetch('/api/session');if(!r.ok){location.href='/login';return}const d=await r.json();document.getElementById('profile-name').textContent=d.usuario||'-';document.getElementById('profile-user').textContent=d.nombre||d.usuario||'-'}catch(e){location.href='/login'}}
 function texto(valor){return valor===null||valor===undefined||valor===''?'-':String(valor)}
 function dinero(valor){const n=Number(valor||0);return Number.isFinite(n)?n.toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2}):'0.00'}
 function fecha(valor){if(!valor)return '-';const t=String(valor);const m=t.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:t.slice(0,10)}
@@ -62,5 +62,5 @@ function exportarPDF(){
   doc.save('RepCuePag.pdf');
 }
 function imprimir(){window.print()}
-async function cerrarSesion(){try{await fetch('/api/logout',{method:'POST'})}finally{location.href='/html/login.html'}}
+async function cerrarSesion(){try{await fetch('/api/logout',{method:'POST'})}finally{location.href='/login'}}
 document.addEventListener('DOMContentLoaded',()=>{cargarUsuario();cargarCuePagar()});

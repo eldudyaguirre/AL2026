@@ -34,7 +34,7 @@
     let activo=enlaces.find(a=>{try{const u=new URL(a.href,window.location.origin);return u.pathname.replace(/\/$/,'').toLowerCase()===actualPath&&u.hash.toLowerCase()===actualHash&&u.hash!=='';}catch(_){return false;}});
     if(!activo&&actualHash)activo=enlaces.find(a=>(a.getAttribute('href')||'').trim().toLowerCase()===actualHash);
     if(!activo)activo=enlaces.find(a=>{try{const u=new URL(a.href,window.location.origin);return u.pathname.replace(/\/$/,'').toLowerCase()===actualPath&&u.hash==='';}catch(_){return false;}});
-    if(!activo&&(actualPath==='/html/frmmenprinci.html'||actualPath==='/frmmenprinci.html'))activo=enlaces.find(a=>a.getAttribute('href')==='/html/frmmenprinci.html');
+    if(!activo&&(actualPath==='/inicio'||actualPath==='/frmmenprinci.html'))activo=enlaces.find(a=>a.getAttribute('href')==='/inicio');
     if(!activo)return;
     activo.classList.add('active');activo.setAttribute('aria-current','page');
     const grupo=activo.closest('.menu-group');
@@ -42,7 +42,7 @@
   }
   function instalarMenuMovilGlobal(){
     const path=window.location.pathname.replace(/\/$/,'').toLowerCase();
-    if(path==='/html/frmmenprinci.html'||path==='/frmmenprinci.html')return;
+    if(path==='/inicio'||path==='/frmmenprinci.html')return;
     const sidebar=document.getElementById('sidebar');
     const topbar=document.querySelector('.topbar');
     if(!sidebar||!topbar)return;
@@ -73,8 +73,8 @@
     mediaTactil.addEventListener?.('change',actualizarModo);
   }
   window.cargarMenuUsuario=async function(){
-    try{const response=await fetch('/api/session');if(!response.ok){window.location.href='/html/login.html';return;}const data=await response.json();const usuario=data.usuario||'';const nombre=data.nombre||usuario||'-';const profileName=document.getElementById('profile-name');const profileUser=document.getElementById('profile-user');const nombreElement=document.getElementById('nombre');const apiValue=document.getElementById('api-value');const dbValue=document.getElementById('db-value');if(profileName)profileName.textContent=usuario;if(profileUser)profileUser.textContent=nombre;if(nombreElement)nombreElement.textContent=nombre;if(apiValue)apiValue.textContent='OK';if(dbValue)dbValue.textContent='OK';}catch(_){window.location.href='/html/login.html';}
+    try{const response=await fetch('/api/session');if(!response.ok){window.location.href='/login';return;}const data=await response.json();const usuario=data.usuario||'';const nombre=data.nombre||usuario||'-';const profileName=document.getElementById('profile-name');const profileUser=document.getElementById('profile-user');const nombreElement=document.getElementById('nombre');const apiValue=document.getElementById('api-value');const dbValue=document.getElementById('db-value');if(profileName)profileName.textContent=usuario;if(profileUser)profileUser.textContent=nombre;if(nombreElement)nombreElement.textContent=nombre;if(apiValue)apiValue.textContent='OK';if(dbValue)dbValue.textContent='OK';}catch(_){window.location.href='/login';}
   };
-  if(typeof window.cerrarSesion!=='function')window.cerrarSesion=async function(){try{await fetch('/api/logout',{method:'POST'});}finally{window.location.href='/html/login.html';}};
+  if(typeof window.cerrarSesion!=='function')window.cerrarSesion=async function(){try{await fetch('/api/logout',{method:'POST'});}finally{window.location.href='/login';}};
   document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('profile-name')&&!document.querySelector('[data-page-dashboard]'))window.cargarMenuUsuario();marcarMenuActivo();instalarMenuMovilGlobal();});
 })();

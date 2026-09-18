@@ -14,9 +14,9 @@ function normalizarEtiqueta(campo) {
   return campo.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function formatearValor(valor) { if (valor === null || valor === undefined || valor === '') return '—'; if (typeof valor === 'object') return JSON.stringify(valor); return String(valor); }
+function formatearValor(valor) { if (valor === null || valor === undefined || valor === '') return '—”'; if (typeof valor === 'object') return JSON.stringify(valor); return String(valor); }
 function formatearMoneda(valor) { const numero = Number(valor); if (!Number.isFinite(numero)) return '$0.00'; return numero.toLocaleString('es-EC', { style:'currency', currency:'USD', minimumFractionDigits:2 }); }
-function formatearFecha(valor) { if (!valor) return '—'; const fecha = new Date(String(valor)); if (Number.isNaN(fecha.getTime())) return String(valor); return fecha.toLocaleDateString('es-EC', {year:'numeric',month:'2-digit',day:'2-digit',timeZone:'UTC'}); }
+function formatearFecha(valor) { if (!valor) return '—”'; const fecha = new Date(String(valor)); if (Number.isNaN(fecha.getTime())) return String(valor); return fecha.toLocaleDateString('es-EC', {year:'numeric',month:'2-digit',day:'2-digit',timeZone:'UTC'}); }
 
 async function cargarClientes(q = '') {
   const body=document.getElementById('clientes-body'), count=document.getElementById('count');
@@ -54,6 +54,6 @@ function cerrarDetalle(){const modal=document.getElementById('cliente-modal');mo
 function abrirMenu(){document.getElementById('sidebar')?.classList.add('open');document.getElementById('overlay')?.classList.add('show');}
 function cerrarMenu(){document.getElementById('sidebar')?.classList.remove('open');document.getElementById('overlay')?.classList.remove('show');}
 function toggleSubmenu(button){const grupo=button.closest('.menu-group');if(!grupo)return;const abierto=grupo.classList.toggle('open');button.setAttribute('aria-expanded',String(abierto));}
-function cerrarSesion(){window.location.href='/api/logout';}
+async function cerrarSesion(){try{await fetch('/api/logout',{method:'POST'});}finally{window.location.href='/login';}}
 document.addEventListener('DOMContentLoaded',()=>{cargarClientes();const buscar=document.getElementById('buscar');buscar?.addEventListener('input',()=>{clearTimeout(timerBusqueda);timerBusqueda=setTimeout(()=>cargarClientes(buscar.value.trim()),300);});});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')cerrarDetalle();});
