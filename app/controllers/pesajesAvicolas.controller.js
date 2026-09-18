@@ -331,13 +331,13 @@ async function reporte(req, res) {
     client = await pool.connect();
     const meta = await metadatosClientes(client);
 
-    const empresaResult = await client.query(\`
+    const empresaResult = await client.query(`
       SELECT nombre_comercial, ruc, direccion, email, telefono
       FROM empresa
       LIMIT 1
-    \`);
+    `);
 
-    const result = await client.query(\`
+    const result = await client.query(`
       SELECT
         p.*,
         COALESCE(CAST(c.\${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
@@ -347,18 +347,18 @@ async function reporte(req, res) {
       LEFT JOIN clientes c
         ON CAST(c.\${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
       WHERE p.id = $1
-    \`, [id]);
+    `, [id]);
 
     if (!result.rows.length) {
       return res.status(404).json({ error: 'Pesaje no encontrado.' });
     }
 
-    const detalle = await client.query(\`
+    const detalle = await client.query(`
       SELECT numero_ave, peso
       FROM pesajes_avicolas_detalle
       WHERE pesaje_id = $1
       ORDER BY numero_ave
-    \`, [id]);
+    `, [id]);
 
     const empresa = empresaResult.rows[0] || {};
     const p = result.rows[0];
