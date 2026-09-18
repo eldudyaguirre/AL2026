@@ -1,10 +1,26 @@
+const PDFDocument = require('pdfkit');
 const pool = require('../database/postgres');
+const { getSession } = require('../auth/session');
 
 const RUC_CANDIDATOS = ['ruccedcli', 'ruc', 'rucced', 'ruc_ced', 'identificacion', 'cedula'];
 const NOMBRE_CANDIDATOS = ['nomclient', 'nomcli', 'nombres', 'nombre', 'razonsocial', 'razon_social'];
 
 function ident(valor) {
   return '"' + String(valor).replace(/"/g, '""') + '"';
+}
+
+function esAdministrativo(req) {
+  const session = getSession(req);
+  return session && String(session.segapp || '').trim().toUpperCase() === 'ADMINISTRATIVO';
+}
+
+function requiereAdministrativo(req, res) {
+  if (!esAdministrativo(req)) {
+    res.status(403).json({ error: 'Solo los usuarios ADMINISTRATIVO pueden procesar pesajes.' });
+    return false;
+  }
+  req.session = getSession(req);
+  return true;
 }
 
 async function metadatosClientes(client) {
@@ -27,9 +43,7 @@ async function metadatosClientes(client) {
   `, [esquema, tabla]);
 
   const disponibles = columnas.rows.map(r => r.column_name);
-  const buscar = candidatos =>
-    disponibles.find(col => candidatos.includes(col.toLowerCase()));
-
+  const buscar = candidatos => disponibles.find(col => candidatos.includes(col.toLowerCase()));
   const colRuc = buscar(RUC_CANDIDATOS);
   const colNombre = buscar(NOMBRE_CANDIDATOS);
 
@@ -48,9 +62,9 @@ async function clientes(req, res) {
 
     const meta = await metadatosClientes(client);
     const q = String(req.query.q || '').trim();
-
     const valores = [];
     let where = '';
+
     if (q) {
       valores.push('%' + q + '%');
       where = `WHERE CAST(${ident(meta.colRuc)} AS text) ILIKE $1
@@ -123,6 +137,8 @@ async function listar(req, res) {
         p.peso_total,
         p.peso_promedio,
         p.estado,
+        p.precio,
+        p.valor_total,
         p.creadopor,
         p.fechacreacion
       FROM pesajes_avicolas p
@@ -242,4 +258,155 @@ async function detalle(req, res) {
   }
 }
 
-module.exports = { clientes, granjas, listar, guardar, detalle };
+async function procesar(req, res) {
+  if (!requiereAdministrativo(req, res)) return;
+
+  const id = Number(req.params.id);
+  const precio = Number(req.body?.precio);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID de pesaje inválido.' });
+  }
+  if (!Number.isFinite(precio) || precio <= 0) {
+    return res.status(400).json({ error: 'Ingrese un precio mayor que cero.' });
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    const actual = await client.query(`
+      SELECT id, peso_total, estado
+      FROM pesajes_avicolas
+      WHERE id = $1
+      FOR UPDATE
+    `, [id]);
+
+    if (!actual.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Pesaje no encontrado.' });
+    }
+
+    if (actual.rows[0].estado !== 'INGRESADO') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'El pesaje ya fue procesado o no se encuentra en estado INGRESADO.' });
+    }
+
+    const pesoTotal = Number(actual.rows[0].peso_total);
+    const valorTotal = pesoTotal * precio;
+
+    const actualizado = await client.query(`
+      UPDATE pesajes_avicolas
+      SET estado = 'PROCESADO',
+          precio = $2,
+          valor_total = $3
+      WHERE id = $1
+      RETURNING id, estado, precio, valor_total
+    `, [id, precio.toFixed(4), valorTotal.toFixed(2)]);
+
+    await client.query('COMMIT');
+    res.json({ mensaje: 'Pesaje procesado correctamente.', pesaje: actualizado.rows[0] });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    console.error('[PESAJE AVI] Error procesando:', error);
+    res.status(500).json({ error: 'No se pudo procesar el pesaje.', detail: error.message });
+  } finally {
+    if (client) client.release();
+  }
+}
+
+async function reporte(req, res) {
+  let client;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'ID de pesaje inválido.' });
+
+    client = await pool.connect();
+
+    const result = await client.query(`
+      SELECT
+        p.*,
+        COALESCE(pr.proyecto, p.codproy) AS granja
+      FROM pesajes_avicolas p
+      LEFT JOIN proyectos pr ON pr.codproy = p.codproy
+      WHERE p.id = $1
+    `, [id]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Pesaje no encontrado.' });
+
+    const detalle = await client.query(`
+      SELECT numero_ave, peso
+      FROM pesajes_avicolas_detalle
+      WHERE pesaje_id = $1
+      ORDER BY numero_ave
+    `, [id]);
+
+    const p = result.rows[0];
+    const doc = new PDFDocument({ size: 'A4', margin: 42 });
+    const nombreArchivo = `reporte-pesaje-${p.id}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+    doc.pipe(res);
+
+    doc.fontSize(18).font('Helvetica-Bold').text('REPORTE DE PESAJE AVÍCOLA', { align: 'center' });
+    doc.moveDown(0.7);
+    doc.fontSize(10).font('Helvetica').text(`ID DEL PESAJE: ${p.id}`, { align: 'center' });
+    doc.moveDown();
+
+    const linea = (etiqueta, valor) => {
+      doc.font('Helvetica-Bold').text(String(etiqueta) + ': ', { continued: true });
+      doc.font('Helvetica').text(String(valor ?? ''));
+    };
+
+    linea('Fecha', p.fecha ? new Date(p.fecha).toLocaleDateString('es-EC') : '');
+    linea('Cliente', p.cliente || p.ruccedcli || '');
+    linea('RUC / Cédula', p.ruccedcli);
+    linea('Código de granja', p.codproy);
+    linea('Granja', p.granja);
+    linea('Galpón', p.galpon || '—');
+    linea('Lote', p.lote || '—');
+    linea('Nota / Guía', p.nota_guia || '—');
+    linea('Observación', p.observacion || '—');
+    linea('Estado', p.estado);
+    linea('Precio por kg', p.precio == null ? '—' : Number(p.precio).toFixed(4));
+    linea('Valor total', p.valor_total == null ? '—' : Number(p.valor_total).toFixed(2));
+    linea('Registrado por', p.creadopor || '—');
+    linea('Fecha de creación', p.fechacreacion ? new Date(p.fechacreacion).toLocaleString('es-EC') : '—');
+
+    doc.moveDown();
+    doc.font('Helvetica-Bold').fontSize(12).text('RESUMEN');
+    doc.font('Helvetica').fontSize(10);
+    linea('Aves pesadas', p.cantidad_aves);
+    linea('Peso total', Number(p.peso_total || 0).toFixed(2) + ' kg');
+    linea('Peso promedio', Number(p.peso_promedio || 0).toFixed(2) + ' kg');
+
+    doc.moveDown();
+    doc.font('Helvetica-Bold').fontSize(12).text('DETALLE DE PESOS');
+    doc.moveDown(0.3);
+    doc.fontSize(9).font('Helvetica-Bold').text('#     Peso (kg)');
+    doc.moveDown(0.2);
+    doc.font('Helvetica');
+    for (const item of detalle.rows) {
+      doc.text(String(item.numero_ave).padStart(4) + '   ' + Number(item.peso).toFixed(2) + ' kg');
+      if (doc.y > 760) {
+        doc.addPage();
+        doc.font('Helvetica-Bold').fontSize(9).text('#     Peso (kg)');
+        doc.moveDown(0.2);
+        doc.font('Helvetica');
+      }
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error('[PESAJE AVI] Error reporte:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'No se pudo generar el reporte.', detail: error.message });
+    }
+  } finally {
+    if (client) await client.end().catch(() => {});
+  }
+}
+
+module.exports = { clientes, granjas, listar, guardar, detalle, procesar, reporte };
