@@ -1,4 +1,6 @@
 const PDFDocument = require('pdfkit');
+const SVGtoPDF = require('svg-to-pdfkit');
+const fs = require('fs');
 const pool = require('../database/postgres');
 const { getSession } = require('../auth/session');
 
@@ -140,7 +142,9 @@ async function listar(req, res) {
         p.precio,
         p.valor_total,
         p.creadopor,
-        p.fechacreacion
+        p.fechacreacion,
+        p.procesadopor,
+        p.fechaproceso
       FROM pesajes_avicolas p
       LEFT JOIN proyectos pr ON pr.codproy = p.codproy
       LEFT JOIN clientes c
@@ -304,10 +308,12 @@ async function procesar(req, res) {
       UPDATE pesajes_avicolas
       SET estado = 'PROCESADO',
           precio = $2,
-          valor_total = $3
+          valor_total = $3,
+          procesadopor = $4,
+          fechaproceso = CURRENT_TIMESTAMP
       WHERE id = $1
-      RETURNING id, estado, precio, valor_total
-    `, [id, precio.toFixed(4), valorTotal.toFixed(2)]);
+      RETURNING id, estado, precio, valor_total, procesadopor, fechaproceso
+    `, [id, precio.toFixed(4), valorTotal.toFixed(2), req.session?.usuario || null]);
 
     await client.query('COMMIT');
     res.json({ mensaje: 'Pesaje procesado correctamente.', pesaje: actualizado.rows[0] });
@@ -406,8 +412,11 @@ async function reporte(req, res) {
 
     const fechaEC = valor => {
       if (!valor) return '';
-      const partes = String(valor).slice(0, 10).split('-');
-      return partes.length === 3 ? partes[2] + '/' + partes[1] + '/' + partes[0] : String(valor);
+      const textoFecha = valor instanceof Date
+        ? valor.toISOString().slice(0, 10)
+        : String(valor).slice(0, 10);
+      const partes = textoFecha.split('-');
+      return partes.length === 3 ? partes[2] + '/' + partes[1] + '/' + partes[0] : textoFecha;
     };
 
     const fechaHoraEC = valor => {
@@ -420,16 +429,17 @@ async function reporte(req, res) {
     doc.moveTo(0, 2).lineTo(pageWidth, 2)
       .lineWidth(1).strokeColor('#222222').stroke();
 
-    // LOGO
+    // LOGO: el archivo del proyecto es SVG; PDFKit no inserta SVG directamente.
     const logoPath = require('path').join(__dirname, '../../public/img/logonuevov2.svg');
     try {
-      doc.image(logoPath, left + 3, 12, {
-        fit: [92, 92],
-        align: 'center',
-        valign: 'center'
+      const logoSvg = fs.readFileSync(logoPath, 'utf8');
+      SVGtoPDF(doc, logoSvg, left + 3, 12, {
+        width: 92,
+        height: 92,
+        preserveAspectRatio: 'xMidYMid meet'
       });
     } catch (logoError) {
-      console.error('[PESAJE AVI] No se pudo cargar el logo:', logoError.message);
+      console.error('[PESAJE AVI] No se pudo cargar el logo SVG:', logoError.message);
     }
 
     // ENCABEZADO EMPRESA
@@ -469,10 +479,15 @@ async function reporte(req, res) {
       }
     }
 
-    empresaLineaDerecha('RUC:', empresa.ruc, 25);
-    empresaLineaDerecha('DIRECCIÓN:', empresa.direccion, 38);
-    empresaLineaDerecha('TELÉFONO:', empresa.telefono, 57);
-    empresaLineaDerecha('EMAIL:', empresa.email, 76);
+    const empresaFilas = [
+      ['RUC:', empresa.ruc],
+      ['DIRECCIÓN:', empresa.direccion],
+      ['TELÉFONO:', empresa.telefono],
+      ['EMAIL:', empresa.email]
+    ];
+    empresaFilas.forEach(([label, valor], indiceFila) => {
+      empresaLineaDerecha(label, valor, 24 + indiceFila * 19);
+    });
 
     // TÍTULO DEL PESAJE
     doc.font('Helvetica-Bold').fontSize(20).fillColor('#303b4a')
@@ -594,14 +609,19 @@ async function reporte(req, res) {
       p.valor_total == null ? '—' : money(p.valor_total),
       verde, '#f8fafc', borde);
 
-    // REGISTRO
-    doc.font('Helvetica').fontSize(6.8).fillColor(gris)
-      .text('Registrado por: ' + texto(p.creadopor) + '   |   Creación: ' + fechaHoraEC(p.fechacreacion),
-        right - 260, 248, {
-          width: 260,
+    // REGISTRO Y PROCESAMIENTO
+    doc.font('Helvetica').fontSize(6.6).fillColor(gris)
+      .text(
+        'Registrado por: ' + texto(p.creadopor) +
+        ' | Creación: ' + fechaHoraEC(p.fechacreacion) +
+        ' | Procesado por: ' + texto(p.procesadopor) +
+        ' | Proceso: ' + fechaHoraEC(p.fechaproceso),
+        right - 500, 248, {
+          width: 500,
           align: 'right',
           lineBreak: false
-        });
+        }
+      );
 
     // DETALLE HORIZONTAL: 10 bloques por fila, exactamente como el formato sugerido.
     const paresPorFila = 10;
