@@ -340,12 +340,12 @@ async function reporte(req, res) {
     const result = await client.query(`
       SELECT
         p.*,
-        COALESCE(CAST(c.\${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
+        COALESCE(CAST(c.${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
         COALESCE(pr.proyecto, p.codproy) AS granja
       FROM pesajes_avicolas p
       LEFT JOIN proyectos pr ON pr.codproy = p.codproy
       LEFT JOIN clientes c
-        ON CAST(c.\${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
+        ON CAST(c.${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
       WHERE p.id = $1
     `, [id]);
 
@@ -490,10 +490,13 @@ async function reporte(req, res) {
       lineBreak: false
     });
 
-    // DATOS PRINCIPALES: cuatro tarjetas.
+    // DATOS PRINCIPALES: distribución igual al formato sugerido.
     const infoY = 129;
     const gap = 8;
-    const infoW = (usableWidth - gap * 3) / 4;
+    const infoAvailable = usableWidth - gap * 3;
+    const infoWeights = [1.00, 1.32, 0.67, 1.00];
+    const infoWeightTotal = infoWeights.reduce((a, b) => a + b, 0);
+    const infoWidths = infoWeights.map(w => infoAvailable * w / infoWeightTotal);
     const infoH = 50;
 
     const bloques = [
@@ -503,8 +506,10 @@ async function reporte(req, res) {
       ['LOTE', texto(p.lote), 'NOTA / GUÍA', texto(p.nota_guia)]
     ];
 
+    let infoX = left;
     for (let i = 0; i < 4; i++) {
-      const x = left + i * (infoW + gap);
+      const x = infoX;
+      const infoW = infoWidths[i];
 
       doc.roundedRect(x, infoY, infoW, infoH, 5)
         .fillColor(azulClaro).fill()
@@ -535,82 +540,59 @@ async function reporte(req, res) {
           ellipsis: true,
           lineBreak: false
         });
+
+      infoX += infoW + gap;
     }
 
-    // RESUMEN: aves, peso total, promedio, precio y valor total.
+    // RESUMEN: misma distribución visual del formato sugerido.
     const resumenY = 190;
-    const resumenGap = 8;
-    const resumenW = (usableWidth - resumenGap * 5) / 6;
-    const resumen = [
-      ['AVES PESADAS', num(p.cantidad_aves, 0), azul, 0],
-      ['PESO TOTAL', num(p.peso_total) + ' kg', azul, 1],
-      ['PESO PROMEDIO', num(p.peso_promedio) + ' kg', azul, 2],
-      ['PRECIO POR KG', p.precio == null ? '—' : money(p.precio, 4), '#604a00', 3],
-      ['VALOR TOTAL', p.valor_total == null ? '—' : money(p.valor_total), verde, 4]
-    ];
+    const tarjetaGap = 9;
+    const escala = usableWidth / 828;
+    const avesW = 74 * escala;
+    const pesoW = 125 * escala;
+    const promedioW = 112 * escala;
+    const precioW = 136 * escala;
+    const valorW = 200 * escala;
+    const tarjetaH = 45;
 
-    for (let i = 0; i < resumen.length; i++) {
-      const x = left + i * (resumenW + resumenGap);
-      const ancho = i === resumen.length - 1 ? resumenW : resumenW;
+    function tarjetaResumen(x, w, titulo, valor, valorColor, fondo, bordeColor) {
+      doc.roundedRect(x, resumenY, w, tarjetaH, 5)
+        .fillColor(fondo).fill()
+        .lineWidth(0.45).strokeColor(bordeColor).stroke();
 
-      doc.roundedRect(x, resumenY, ancho, 45, 5)
-        .fillColor(i === 3 ? '#fffaf0' : '#f8fafc').fill()
-        .lineWidth(0.45).strokeColor(i === 3 ? '#ead8ad' : borde).stroke();
+      doc.font('Helvetica-Bold').fontSize(6.4).fillColor(
+        titulo === 'PRECIO POR KG' ? amarillo : gris
+      ).text(titulo, x + 8, resumenY + 7, {
+        width: w - 16,
+        lineBreak: false
+      });
 
-      doc.font('Helvetica-Bold').fontSize(6.4).fillColor(i === 3 ? amarillo : gris)
-        .text(resumen[i][0], x + 8, resumenY + 7, {
-          width: ancho - 16,
-          lineBreak: false
-        });
-
-      doc.font('Helvetica-Bold').fontSize(10.5).fillColor(resumen[i][2])
-        .text(resumen[i][1], x + 8, resumenY + 20, {
-          width: ancho - 16,
+      doc.font('Helvetica-Bold').fontSize(10.5).fillColor(valorColor)
+        .text(valor, x + 8, resumenY + 20, {
+          width: w - 16,
           ellipsis: true,
           lineBreak: false
         });
     }
 
-    // Sexto espacio: valor total ocupa la sexta tarjeta, dejando separación visual.
-    // La tarjeta anterior usa 5 de las 6 columnas; se agrega una tarjeta final para VALOR TOTAL.
-    // Reubicar la quinta tarjeta en la sexta columna y dejar la quinta como espacio.
-    const quintaX = left + 4 * (resumenW + resumenGap);
-    doc.rect(quintaX, resumenY, resumenW, 45).fillColor('#ffffff').fill();
+    tarjetaResumen(left, avesW, 'AVES PESADAS', num(p.cantidad_aves, 0), azul, '#f8fafc', borde);
 
-    const valorX = left + 5 * (resumenW + resumenGap);
-    doc.roundedRect(valorX, resumenY, resumenW, 45, 5)
-      .fillColor('#f8fafc').fill()
-      .lineWidth(0.45).strokeColor(borde).stroke();
+    const pesoX = left + avesW + tarjetaGap;
+    tarjetaResumen(pesoX, pesoW, 'PESO TOTAL', num(p.peso_total) + ' kg', azul, '#f8fafc', borde);
 
-    doc.font('Helvetica-Bold').fontSize(6.4).fillColor(gris)
-      .text('VALOR TOTAL', valorX + 8, resumenY + 7, {
-        width: resumenW - 16,
-        lineBreak: false
-      });
+    const promedioX = pesoX + pesoW + tarjetaGap;
+    tarjetaResumen(promedioX, promedioW, 'PESO PROMEDIO', num(p.peso_promedio) + ' kg', azul, '#f8fafc', borde);
 
-    doc.font('Helvetica-Bold').fontSize(10.5).fillColor(verde)
-      .text(p.valor_total == null ? '—' : money(p.valor_total), valorX + 8, resumenY + 20, {
-        width: resumenW - 16,
-        ellipsis: true,
-        lineBreak: false
-      });
+    const valorX = right - valorW;
+    const precioX = valorX - tarjetaGap - precioW;
 
-    // La tarjeta 5 quedó limpiada; eliminar duplicado de VALOR TOTAL.
-    const precioX = left + 3 * (resumenW + resumenGap);
-    doc.roundedRect(precioX, resumenY, resumenW, 45, 5)
-      .fillColor('#fffaf0').fill()
-      .lineWidth(0.45).strokeColor('#ead8ad').stroke();
-    doc.font('Helvetica-Bold').fontSize(6.4).fillColor(amarillo)
-      .text('PRECIO POR KG', precioX + 8, resumenY + 7, {
-        width: resumenW - 16,
-        lineBreak: false
-      });
-    doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#604a00')
-      .text(p.precio == null ? '—' : money(p.precio, 4), precioX + 8, resumenY + 20, {
-        width: resumenW - 16,
-        ellipsis: true,
-        lineBreak: false
-      });
+    tarjetaResumen(precioX, precioW, 'PRECIO POR KG',
+      p.precio == null ? '—' : money(p.precio, 4),
+      '#604a00', '#fffaf0', '#ead8ad');
+
+    tarjetaResumen(valorX, valorW, 'VALOR TOTAL',
+      p.valor_total == null ? '—' : money(p.valor_total),
+      verde, '#f8fafc', borde);
 
     // REGISTRO
     doc.font('Helvetica').fontSize(6.8).fillColor(gris)
