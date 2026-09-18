@@ -340,12 +340,12 @@ async function reporte(req, res) {
     const result = await client.query(`
       SELECT
         p.*,
-        COALESCE(CAST(c.\${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
+        COALESCE(CAST(c.${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
         COALESCE(pr.proyecto, p.codproy) AS granja
       FROM pesajes_avicolas p
       LEFT JOIN proyectos pr ON pr.codproy = p.codproy
       LEFT JOIN clientes c
-        ON CAST(c.\${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
+        ON CAST(c.${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
       WHERE p.id = $1
     `, [id]);
 
