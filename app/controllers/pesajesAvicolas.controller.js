@@ -105,12 +105,14 @@ async function listar(req, res) {
     client = pool.createDedicatedClient();
     await client.connect();
 
+    const meta = await metadatosClientes(client);
+
     const result = await client.query(`
       SELECT
         p.id,
         p.fecha,
         p.ruccedcli,
-        COALESCE(c.nombre, p.ruccedcli) AS cliente,
+        COALESCE(CAST(c.${ident(meta.colNombre)} AS text), CAST(p.ruccedcli AS text)) AS cliente,
         p.codproy,
         COALESCE(pr.proyecto, p.codproy) AS granja,
         p.galpon,
@@ -125,12 +127,8 @@ async function listar(req, res) {
         p.fechacreacion
       FROM pesajes_avicolas p
       LEFT JOIN proyectos pr ON pr.codproy = p.codproy
-      LEFT JOIN LATERAL (
-        SELECT CAST(c0.ruccedcli AS text) AS ruc, CAST(c0.nomclient AS text) AS nombre
-        FROM clientes c0
-        WHERE CAST(c0.ruccedcli AS text) = CAST(p.ruccedcli AS text)
-        LIMIT 1
-      ) c ON TRUE
+      LEFT JOIN clientes c
+        ON CAST(c.${ident(meta.colRuc)} AS text) = CAST(p.ruccedcli AS text)
       ORDER BY p.fecha DESC, p.id DESC
       LIMIT 200
     `);
